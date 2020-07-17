@@ -18,11 +18,12 @@
 
 #define LISTENQ 100
 
-TcpServer::TcpServer(int port, int threadsNum)
+TcpServer::TcpServer(int port, int subReactorThreadsNum,int workerThreadsNum)
 {
 	acceptor_ =new Channel(listenNoblock(port),OP_ADD);
-	eventLoopThreadPool_ = new EventLoopThreadPool(threadsNum);
-
+	eventLoopThreadPool_ = new EventLoopThreadPool(subReactorThreadsNum);
+    maxRequests_ = 10000;
+    workThreadPool_ = new WorkThreadsPool(workerThreadsNum,std::bind(&TcpServer::worker,this));
 }
 
 TcpServer::~TcpServer()
@@ -86,6 +87,22 @@ int TcpServer::handleConnectioneEstablished() {
     return 0;
 }
 
+
+void * TcpServer::worker()
+{
+	sem_wait(&sem_);
+	pthread_mutex_unlock(&locker_);
+	TcpConnection * tcpConnection= workQueue_.front();
+    workQueue_.pop();
+    pthread_mutex_unlock(&locker_);
+
+    messageCallBack_(&tcpConnection->inBuffer_,&tcpConnection->outBuffer_);
+
+    tcpConnection->channel_->setOp(OP_MOD);
+    tcpConnection->channel_->setEvents(EPOLLOUT || EPOLLET);
+    tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
+}
+
 void TcpServer::start() 
 {
 
@@ -98,8 +115,12 @@ void TcpServer::start()
 	eventLoopThreadPool_->baseEventLoop_->channelMap_[acceptor_->getFd()] = acceptor_;
 	eventLoopThreadPool_->baseEventLoop_->channelOpEvent(acceptor_);
 
+    //工作线程开启
+    workThreadPool_->start();
 	//运行baseeventloop 
 	eventLoopThreadPool_->baseEventLoop_->run();
+
+    
     return;
 }
 

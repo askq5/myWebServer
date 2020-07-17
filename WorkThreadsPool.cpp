@@ -1,17 +1,8 @@
 /*************************************************************************
-	> File Name: workThreadPool.cpp
+	> File Name: WorkThreadsPoll.cpp
 	> Author: nemo
 	> Mail: 1445118957@qq.com
-	> Created Time: Fri 17 Jul 2020 11:24:38 AM CST
+	> Created Time: Fri 17 Jul 2020 07:58:31 PM CST
  ************************************************************************/
 
-#include <iostream>
-using namespace std;
 
-int main()
-{
-
-
-
-    return 0;
-}

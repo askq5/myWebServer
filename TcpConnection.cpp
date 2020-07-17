@@ -24,6 +24,7 @@ TcpConnection::TcpConnection(int fd, EventLoop * eventLoop, TcpServer * ptr)
 	channel_->setWriteHandler(std::bind(&TcpConnection::handleWrite,this));
 	
 	eventLoop_ = eventLoop;
+    eventLoop_->channelMap_[fd] = channel_;
 	//name_ ?
 	eventLoop_->channelOpEvent(channel_);
     
@@ -43,10 +44,11 @@ void TcpConnection::shutDown() {
 }
 
 int TcpConnection::handleConnectionClosed() {
+    eventLoop_->channelMap_[channel_->getFd()] = nullptr;
 	channel_->setOp(OP_DEL);
     eventLoop_->channelOpEvent(channel_);
     if (tcpServer_->getConnectionClosedCallBack() != nullptr) {
-        tcpServer_->getConnectionClosedCallBack()(nullptr);
+        tcpServer_->getConnectionClosedCallBack()(nullptr,nullptr);
     }
 }
 
@@ -75,8 +77,16 @@ int TcpConnection::handleRead() {
         handleConnectionClosed();
         return -1;
     }
-
-    tcpServer_->workQueue.push(this);
+    pthread_mutex_lock(&tcpServer_->locker_);
+    if(tcpServer_->workQueue_.size() >= tcpServer_->maxRequests_)
+    {
+        pthread_mutex_unlock(&tcpServer_->locker_);
+        //太多连接了
+        return -1;
+    }
+    tcpServer_->workQueue_.push(this);
+    pthread_mutex_unlock(&tcpServer_->locker_);
+    sem_post(&tcpServer_->sem_);
     return 0;
     // if(tcpServer_->getMessageCallBack() != nullptr) 
     // {
