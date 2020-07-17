@@ -16,11 +16,6 @@
 #include "Channel.h"
 #include "Epoll.h"
 
-struct channel_element {
-    int type; //1: add  2: delete
-    Channel channel;
-};
-
 class EventLoop
 {
 private:
@@ -49,12 +44,16 @@ private:
     void wakeup();
     //绑定在根据wakefd生成的channel上
     int handleWakeup();
+
+    int createEventfd();
+
 public:
 	EventLoop(std::string threadName);
 	~EventLoop();
     //fd 指示 channel 的存在
     std::unordered_map<int,Channel*> channelMap_;
     
+    std::string getThreadName() { return threadName_; }
 	pthread_t getTid() { return ownerThreadId_;}
 	int run();
 
@@ -64,7 +63,7 @@ public:
 
     // int updateChannelEvent(Channel * channel1);
 
-    int doChannelEvent(Channel * channel);
+    int channelOpEvent(Channel * channel);
 
   
     // int handlePendingAdd(int fd, struct channel *channel);

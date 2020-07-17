@@ -18,10 +18,10 @@
 
 #define LISTENQ 100
 
-TcpServer::TcpServer(int port, int threadNum)
+TcpServer::TcpServer(int port, int threadsNum)
 {
 	acceptor_ =new Channel(listenNoblock(port),OP_ADD);
-	eventLoopThreadPool_ = new EventLoopThreadPool(threadNum);
+	eventLoopThreadPool_ = new EventLoopThreadPool(threadsNum);
 
 }
 
@@ -79,8 +79,9 @@ int TcpServer::handleConnectioneEstablished() {
     // create a new tcp connection 本质是封装了一个channel 及 其它
     //tcpconnection 中根据fd创建connectedchannel 设置connectedchannel的回调函数(其中会调用tcpserver的回调函数？)
 	//并将该channel注册到eventloop
-    TcpConnection *tcpConnection = new TcpConnection(connected_fd,eventLoop);
-	tcpConnection->setTcpServer(this);
+    TcpConnection *tcpConnection = new TcpConnection(connected_fd,eventLoop,this);
+    //tcpConection->setName  = eventLoop->getThreadName();
+	//tcpConnection->setTcpServer(this);
 
     return 0;
 }
@@ -95,7 +96,7 @@ void TcpServer::start()
 	acceptor_->setReadHandler(std::bind(&TcpServer::handleConnectioneEstablished,this));
     //acceptor_->setOp();
 	eventLoopThreadPool_->baseEventLoop_->channelMap_[acceptor_->getFd()] = acceptor_;
-	eventLoopThreadPool_->baseEventLoop_->doChannelEvent(acceptor_);
+	eventLoopThreadPool_->baseEventLoop_->channelOpEvent(acceptor_);
 
 	//运行baseeventloop 
 	eventLoopThreadPool_->baseEventLoop_->run();

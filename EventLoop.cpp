@@ -12,7 +12,7 @@
 #include "EventLoop.h"
 #include "Utils.h"
 
-int createEventfd() {
+int EventLoop::createEventfd() {
   int evtfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
   if (evtfd < 0) {
     
@@ -55,7 +55,8 @@ EventLoop::EventLoop(std::string threadName)
 EventLoop::~EventLoop()
 {
 	delete epoller_;
-	delete channelMap_;
+	for(auto iter : channelMap_)
+		delete iter.second;
 }
 
 int EventLoop::run(/*struct event_loop *eventLoop*/)
@@ -116,7 +117,7 @@ int EventLoop::handleWakeup() {
 	return 0;
 }
 
-int EventLoop::doChannelEvent(Channel * channel)
+int EventLoop::channelOpEvent(Channel * channel)
 {
 	//在这里判断线程id（phtread_self）是否与eventloop绑定的一样
 	if(pthread_self() != ownerThreadId_)
