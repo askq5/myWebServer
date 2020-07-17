@@ -19,7 +19,7 @@ private:
 	/* data */
 	EventLoop * eventLoop_;
     Channel * channel_;
-    char  * name_;
+    std::string threadName_;
     std::string inBuffer_;   //接收缓冲区
     std::string outBuffer_;  //发送缓冲区
 	TcpServer * tcpServer_;
@@ -34,9 +34,10 @@ private:
 	int handleWrite();
 	//int sendData(void *data, int size);
 public:
-	TcpConnection(int fd, EventLoop * eventloop);
+	TcpConnection(int fd, EventLoop * eventloop, TcpServer * ptr);
 	~TcpConnection();
 	
+	std::string getThreadName() { return threadName_; }
 	void setTcpServer(TcpServer * tcpServer) { tcpServer_ = tcpServer; }
 	//应用层调用入口
 	//int SendBuffer(string buffer);

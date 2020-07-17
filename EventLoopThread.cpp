@@ -14,7 +14,6 @@ EventLoopThread::EventLoopThread(int i)
 	pthread_mutex_init(&mutex_, NULL);
     pthread_cond_init(&cond_, NULL);
     eventLoop_ = NULL;
-    threadCount_ = 0;
     threadTid_ = 0;
 
     char *buf = new char[16];
@@ -25,12 +24,13 @@ EventLoopThread::EventLoopThread(int i)
 
 EventLoopThread::~EventLoopThread()
 {
+    pthread_mutex_destroy(&mutex_);
+    pthread_cond_destroy(&cond_);
 }
 
 
 void * threadFunc(void * ptr)
 {
-
     EventLoopThread * myPtr = (EventLoopThread *)ptr;
     pthread_mutex_lock(&myPtr->mutex_);
     //初始化 eventloop
@@ -41,13 +41,6 @@ void * threadFunc(void * ptr)
     
     //循环调用eventloop.diapatcher;
     myPtr->eventLoop_->run();
-    // while(1)
-    // {
-    //     myPtr->eventLoop_->eventDispatcher_->epoll_dispatch();
-
-    //     //处理pendingChannel?
-
-    // }
     return nullptr;
 }
 

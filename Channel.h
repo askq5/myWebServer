@@ -26,7 +26,7 @@ private:
 	int fd_;
 	int fdState_;
 	int op_;
-	__uint32_t events_;
+	__uint32_t fdEvent_;
 
 	CallBack  readHandler_;
   	CallBack  writeHandler_;
@@ -40,8 +40,8 @@ public:
 	void setOp(int op) { op_ = op; }
 	int getFd() { return fd_; }
   	void setFd(int fd){ fd_ = fd; }
-	void setEvents(__uint32_t ev) { events_ = ev; }
-	__uint32_t &getEvents() { return events_; }
+	void setEvents(__uint32_t ev) { fdEvent_ = ev; }
+	__uint32_t &getEvents() { return fdEvent_; }
 	void setReadHandler(CallBack && readHandler)
 	{ readHandler_ = readHandler; }
   	void setWriteHandler(CallBack && writeHandler) 

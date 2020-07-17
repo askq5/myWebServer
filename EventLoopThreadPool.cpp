@@ -7,12 +7,12 @@
 
 #include "EventLoopThreadPool.h"
 
-EventLoopThreadPool::EventLoopThreadPool(int numThreads)
-:started_(false), numThreads_(numThreads), next_(0)
+EventLoopThreadPool::EventLoopThreadPool(int threadsNum)
+:started_(false), threadsNum_(threadsNum), next_(0)
 {
   baseEventLoop_  = new EventLoop(nullptr);
 
-  if (numThreads_ <= 0)
+  if (threadsNum_ <= 0)
   {
       
     
@@ -32,7 +32,7 @@ void EventLoopThreadPool::start() {
     */
 
     started_ = true;
-    for (int i = 0; i < numThreads_; ++i) 
+    for (int i = 0; i < threadsNum_; ++i) 
     {
     EventLoopThread * t = new EventLoopThread(i);
     threads_.push_back(t);
@@ -58,7 +58,7 @@ EventLoop *EventLoopThreadPool::getNextLoop() {
   EventLoop *loop = nullptr;
   if (!loops_.empty()) {
     loop = loops_[next_];
-    next_ = (next_ + 1) % numThreads_;
+    next_ = (next_ + 1) % threadsNum_;
   }
   return loop;
 }

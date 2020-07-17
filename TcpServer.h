@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <string>
+#include <queue>
 
 #include "Channel.h"
 #include "EventLoopThreadPool.h"
@@ -26,7 +27,12 @@ private:
     TcpServerCallBack messageCallBack_;
     TcpServerCallBack writeCompletedCallBack_;
     TcpServerCallBack connectionClosedCallBack_;
-    
+
+	//int port_;
+	Channel *acceptor_;
+    //int threadsNum_;
+    EventLoopThreadPool *eventLoopThreadPool_;
+
 
 	void make_nonblocking(int fd);
 	int listenNoblock(int port);
@@ -37,6 +43,7 @@ public:
 	TcpServer(int port, int threadNum);
 	~TcpServer();
 
+	std::queue<TcpConnection *> workQueue;
 	
 	void setConnectionCompleted(TcpServerCallBack && connectionCompletedCallBack)
 	{ connectionCompletedCallBack_ = connectionCompletedCallBack; }
@@ -59,16 +66,10 @@ public:
 	int writeCompleted(void * ptr) { return writeCompletedCallBack_(ptr); }
 	int connectionClosed(void * ptr) { return connectionClosedCallBack_(ptr); }
 
-	int port_;
-	Channel *acceptor_;
-    int threadNum_;
-    EventLoopThreadPool *eventLoopThreadPool_;
-
+	
 	void start();
 
 };
-
-
 
 
 #endif
