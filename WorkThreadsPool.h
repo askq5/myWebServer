@@ -18,6 +18,7 @@ class WorkThreadsPool
 {
 private:
 	typedef std::function<void *()> ThreadFunc;
+    int threadsNum_;
 	ThreadFunc threadFunc_;
 	/* data */
 public:
@@ -25,7 +26,7 @@ public:
 	~WorkThreadsPool();
 	int start();
 	//void * worker(void *);
-	int threadsNum_;
+	
 	pthread_t * workThreads_;
 
 };

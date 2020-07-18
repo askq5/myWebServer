@@ -14,13 +14,14 @@
 
 
 #include "TcpServer.h"
-
+#include "TcpConnection.h"
 
 #define LISTENQ 100
 
 TcpServer::TcpServer(int port, int subReactorThreadsNum,int workerThreadsNum)
 {
 	acceptor_ =new Channel(listenNoblock(port),OP_ADD);
+    acceptor_->setEvents(EPOLLIN | EPOLLET);
 	eventLoopThreadPool_ = new EventLoopThreadPool(subReactorThreadsNum);
     maxRequests_ = 10000;
     workThreadPool_ = new WorkThreadsPool(workerThreadsNum,std::bind(&TcpServer::worker,this));
@@ -83,7 +84,7 @@ int TcpServer::handleConnectioneEstablished() {
     TcpConnection *tcpConnection = new TcpConnection(connected_fd,eventLoop,this);
     //tcpConection->setName  = eventLoop->getThreadName();
 	//tcpConnection->setTcpServer(this);
-
+    tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
     return 0;
 }
 
@@ -97,10 +98,12 @@ void * TcpServer::worker()
     pthread_mutex_unlock(&locker_);
 
     messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
-
+    //更改
     tcpConnection->channel_->setOp(OP_MOD);
-    tcpConnection->channel_->setEvents(EPOLLOUT || EPOLLET);
+    tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);
     tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
+
+    return nullptr;
 }
 
 void TcpServer::start() 
@@ -111,7 +114,8 @@ void TcpServer::start()
 
     //设置acceptor的回调函数 并将acceptor注册到baseeventloop
 	acceptor_->setReadHandler(std::bind(&TcpServer::handleConnectioneEstablished,this));
-    //acceptor_->setOp();
+    
+    
 	eventLoopThreadPool_->baseEventLoop_->channelMap_[acceptor_->getFd()] = acceptor_;
 	eventLoopThreadPool_->baseEventLoop_->channelOpEvent(acceptor_);
 

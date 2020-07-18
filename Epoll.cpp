@@ -18,7 +18,8 @@ Epoll::Epoll(/* args */)
 	{
 		/* error */
 	}
-
+    events_ = new epoll_event[MAXEVENTS];
+    
 }
 
 Epoll::~Epoll()
@@ -77,7 +78,11 @@ int Epoll::epollMod(int fd, epoll_event epollEvent)
 int Epoll::epollDispatch()
 {
 
-	int eventsCount = epoll_wait(epollFd_, events_,MAXEVENTS, -1);
+	int eventsCount = epoll_wait(epollFd_, events_,MAXEVENTS, 500);
+    if(eventsCount < 0)
+    {
+        perror("epoll_wait()");
+    }
 	/*
 	for(int i = 0; i < event_count; i++)
 	{

@@ -10,7 +10,7 @@
 EventLoopThreadPool::EventLoopThreadPool(int threadsNum)
 :started_(false), threadsNum_(threadsNum), next_(0)
 {
-  baseEventLoop_  = new EventLoop(nullptr);
+  baseEventLoop_  = new EventLoop(std::string());
 
   if (threadsNum_ <= 0)
   {
@@ -18,6 +18,12 @@ EventLoopThreadPool::EventLoopThreadPool(int threadsNum)
     
   }
   
+
+}
+
+EventLoopThreadPool::~EventLoopThreadPool()
+{
+    delete baseEventLoop_;
 
 }
 

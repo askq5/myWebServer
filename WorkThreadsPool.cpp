@@ -25,10 +25,11 @@ int WorkThreadsPool::start()
 {
 	for(int i = 0; i  < threadsNum_; i++)
 	{
-		Thread thread(threadFunc_,"worker");
-		*(workThreads_+i) = thread.tid();
+		Thread * thread = new Thread(threadFunc_,"worker");
+        thread->start();
+		*(workThreads_+i) = thread->tid();
 	}
-
+    return 0;
 }
 
 

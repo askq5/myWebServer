@@ -135,7 +135,7 @@ int HttpServer::handleMessage(std::string & inBuffer, std::string & outBuffer)
     parseRequest();
 
 
-
+    return 0;
 }
 
 void HttpServer::reset()

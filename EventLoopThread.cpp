@@ -17,7 +17,7 @@ EventLoopThread::EventLoopThread(int i)
     threadTid_ = 0;
 
     char *buf = new char[16];
-    sprintf(buf, "Thread-%d\0", i + 1);
+    sprintf(buf, "Thread-%d", i + 1);
     threadName_ = buf;
     //threadFunc_ = std::bind(threadFunc,this);
 }
@@ -51,7 +51,7 @@ EventLoop* EventLoopThread::startLoop()
     pthread_cond_wait(&cond_, &mutex_);
     pthread_mutex_unlock(&mutex_);
 
-
+    return nullptr;
 }
 
 

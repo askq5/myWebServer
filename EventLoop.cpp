@@ -94,6 +94,7 @@ int EventLoop::run(/*struct event_loop *eventLoop*/)
 		handlePendingChannel();
 	}
 
+    return 0;
 }
 
 void EventLoop::wakeup()
@@ -130,9 +131,10 @@ int EventLoop::channelOpEvent(Channel * channel)
 	}
 	else
 	{
-		epoller_->epollCtl(channel);
 		//handlePendingChannel();
+		epoller_->epollCtl(channel);
 	}
+    return 0;
 }
 
 int EventLoop::handlePendingChannel()

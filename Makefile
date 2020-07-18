@@ -1,7 +1,8 @@
 MAINSOURCE:=webServer.cpp
 SOURCE:=$(wildcard *.cpp)
 override SOURCE:=$(filter-out &(MAINSOURCE),$(SOURCE))
-OBJS := $(PATHSUBST %.cpp,%.o,$(SOURCE))
+OBJS := $(SOURCE)
+#OBJS := $(PATHSUBST %.cpp,%.o,$(SOURCE))
 
 
 	 
@@ -24,5 +25,5 @@ veryclean:
 debug:
 	@echo $(SOURCE)
 
-$(TARGET): $(OBJS) webServer.o
+$(TARGET): $(OBJS) webServer.cpp
 	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)

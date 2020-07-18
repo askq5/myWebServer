@@ -54,8 +54,8 @@ struct ThreadData
 
     void runInThread()
     {
-        *tid_ = CurrentThread::tid();
-        tid_ = NULL;
+        //*tid_ = CurrentThread::tid();
+        //tid_ = NULL;
 
         CurrentThread::t_threadName = name_.empty() ? "Thread" : name_.c_str();
         prctl(PR_SET_NAME, CurrentThread::t_threadName);
@@ -112,7 +112,7 @@ void Thread::start()
     }
     else
     {
-        assert(tid_ > 0);
+       // assert(tid_ > 0);
     }
 }
 

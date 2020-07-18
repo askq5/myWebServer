@@ -11,11 +11,11 @@
 
 #include "EventLoop.h"
 #include "Channel.h"
-#include "TcpServer.h"
+//#include "TcpServer.h"
 
 //继承channel ?
 
-
+class TcpServer;
 class TcpConnection
 {
 private:

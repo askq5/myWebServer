@@ -11,23 +11,22 @@
 
 #include "TcpConnection.h"
 #include "Utils.h"
-//#include "TcpServer.h"
+#include "TcpServer.h"
 
 #define BUFSIZE 1024
 
 TcpConnection::TcpConnection(int fd, EventLoop * eventLoop, TcpServer * ptr)
 {
     tcpServer_ = ptr;
-	channel_ = new Channel(fd,EVENT_READ);
+	channel_ = new Channel(fd,OP_ADD);
 	channel_->setEvents(EPOLLIN | EPOLLET);
-    channel_->setOp(OP_ADD);
+    
 	channel_->setReadHandler(std::bind(&TcpConnection::handleRead,this));
 	channel_->setWriteHandler(std::bind(&TcpConnection::handleWrite,this));
 	
 	eventLoop_ = eventLoop;
     eventLoop_->channelMap_[fd] = channel_;
 	//name_ ?
-	eventLoop_->channelOpEvent(channel_);
     
 }
 
@@ -51,6 +50,7 @@ int TcpConnection::handleConnectionClosed() {
     // if (tcpServer_->getConnectionClosedCallBack() != nullptr) {
     //     tcpServer_->getConnectionClosedCallBack()(nullptr,nullptr);
     // }
+    return 0;
 }
 
 int TcpConnection::handleRead() {

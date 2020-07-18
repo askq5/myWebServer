@@ -16,10 +16,10 @@
 #include "Channel.h"
 #include "EventLoopThreadPool.h"
 #include "WorkThreadsPool.h"
-//#include "TcpConnection.h"
+#include "TcpConnection.h"
 //template <typename T>
 
-class TcpConnection;
+//class TcpConnection;
 
 class TcpServer
 {
