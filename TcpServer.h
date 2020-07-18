@@ -11,10 +11,11 @@
 #include <functional>
 #include <string>
 #include <queue>
+#include <semaphore.h>
 
 #include "Channel.h"
 #include "EventLoopThreadPool.h"
-
+#include "WorkThreadsPool.h"
 
 //template <typename T>
 class TcpServer
@@ -22,7 +23,7 @@ class TcpServer
 private:
 	/* data */
 	
-	typedef std::function<int (void *)> TcpServerCallBack;
+	typedef std::function<int (std::string &,std::string &)> TcpServerCallBack;
     TcpServerCallBack connectionCompletedCallBack_;
     TcpServerCallBack messageCallBack_;
     TcpServerCallBack writeCompletedCallBack_;
@@ -32,7 +33,7 @@ private:
 	Channel *acceptor_;
     //int threadsNum_;
     EventLoopThreadPool *eventLoopThreadPool_;
-
+	WorkThreadsPool * workThreadPool_;
 
 	void make_nonblocking(int fd);
 	int listenNoblock(int port);
@@ -40,11 +41,15 @@ private:
 	//设置callback数据
 	//void setData(void * data);
 public:
-	TcpServer(int port, int threadNum);
+	TcpServer(int port, int subReactorThreadsNum,int workerThreadsNum);
 	~TcpServer();
+	sem_t sem_;
+	pthread_mutex_t locker_;
+	std::queue<TcpConnection *> workQueue_;
+	int maxRequests_;
 
-	std::queue<TcpConnection *> workQueue;
-	
+	void * TcpServer::worker();
+
 	void setConnectionCompleted(TcpServerCallBack && connectionCompletedCallBack)
 	{ connectionCompletedCallBack_ = connectionCompletedCallBack; }
 	void setMessage(TcpServerCallBack && messageCallBack)
@@ -61,10 +66,10 @@ public:
 	{ return writeCompletedCallBack_; }
 	TcpServerCallBack getConnectionClosedCallBack()
 	{ return connectionClosedCallBack_; }
-	int connectionCompleted(void * ptr) { return connectionClosedCallBack_(ptr); }
-	int message(void * ptr) { return messageCallBack_(ptr); }
-	int writeCompleted(void * ptr) { return writeCompletedCallBack_(ptr); }
-	int connectionClosed(void * ptr) { return connectionClosedCallBack_(ptr); }
+	// int connectionCompleted(void * ptr) { return connectionClosedCallBack_(*ptr,*ptr); }
+	// int message(void * ptr) { return messageCallBack_(ptr,ptr); }
+	// int writeCompleted(void * ptr) { return writeCompletedCallBack_(ptr,ptr); }
+	// int connectionClosed(void * ptr) { return connectionClosedCallBack_(ptr,ptr); }
 
 	
 	void start();

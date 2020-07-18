@@ -47,9 +47,9 @@ int TcpConnection::handleConnectionClosed() {
     eventLoop_->channelMap_[channel_->getFd()] = nullptr;
 	channel_->setOp(OP_DEL);
     eventLoop_->channelOpEvent(channel_);
-    if (tcpServer_->getConnectionClosedCallBack() != nullptr) {
-        tcpServer_->getConnectionClosedCallBack()(nullptr,nullptr);
-    }
+    // if (tcpServer_->getConnectionClosedCallBack() != nullptr) {
+    //     tcpServer_->getConnectionClosedCallBack()(nullptr,nullptr);
+    // }
 }
 
 int TcpConnection::handleRead() {

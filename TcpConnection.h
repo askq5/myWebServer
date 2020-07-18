@@ -12,16 +12,13 @@
 #include "EventLoop.h"
 #include "Channel.h"
 #include "TcpServer.h"
-
+//继承channel
 class TcpConnection
 {
 private:
 	/* data */
-	EventLoop * eventLoop_;
-    Channel * channel_;
     std::string threadName_;
-    std::string inBuffer_;   //接收缓冲区
-    std::string outBuffer_;  //发送缓冲区
+   
 	TcpServer * tcpServer_;
 
 	
@@ -36,7 +33,11 @@ private:
 public:
 	TcpConnection(int fd, EventLoop * eventloop, TcpServer * ptr);
 	~TcpConnection();
-	
+    Channel * channel_;
+	EventLoop * eventLoop_;
+
+    std::string outBuffer_;  //发送缓冲区
+ 	std::string inBuffer_;   //接收缓冲区
 	std::string getThreadName() { return threadName_; }
 	void setTcpServer(TcpServer * tcpServer) { tcpServer_ = tcpServer; }
 	//应用层调用入口

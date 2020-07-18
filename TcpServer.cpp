@@ -96,7 +96,7 @@ void * TcpServer::worker()
     workQueue_.pop();
     pthread_mutex_unlock(&locker_);
 
-    messageCallBack_(&tcpConnection->inBuffer_,&tcpConnection->outBuffer_);
+    messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
 
     tcpConnection->channel_->setOp(OP_MOD);
     tcpConnection->channel_->setEvents(EPOLLOUT || EPOLLET);

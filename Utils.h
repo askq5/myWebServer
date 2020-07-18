@@ -11,8 +11,6 @@
 #include <cstdlib>
 #include <string>
 
-
-
 ssize_t readn(int fd, void *buff, size_t n);
 ssize_t readn(int fd, std::string &inBuffer, bool &zero);
 ssize_t readn(int fd, std::string &inBuffer);
@@ -31,6 +29,5 @@ void assertInSameThread(EventLoop *eventLoop);
 
 //1： same thread: 0： not the same thread
 int isInSameThread(EventLoop *eventLoop);
-
 
 #endif
