@@ -208,7 +208,7 @@ void HttpServer::parseRequest()
 
         if (state_ == STATE_PARSE_URL)
         {
-            URIState flag = this->parseURI();
+            URLState flag = this->parseURL();
             if (flag == PARSE_URL_AGAIN)
                 break;
             else if (flag == PARSE_URL_ERROR)
@@ -319,7 +319,7 @@ void HttpServer::parseRequest()
 }
 
 
-URIState HttpServer::parseURI()
+URLState HttpServer::parseURL()
 {
     string &str = inBuffer_;
     string cop = str;
