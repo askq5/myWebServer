@@ -28,33 +28,8 @@ public:
 	int threadsNum_;
 	pthread_t * workThreads_;
 
-	//TcpServer * tcpServer_;
 };
 
-WorkThreadsPool::WorkThreadsPool(int threadsNum,ThreadFunc threadFunc)
-				:threadsNum_(threadsNum),
-				threadFunc_(threadFunc)
-
-
-{
-	workThreads_ = new pthread_t[threadsNum_];
-
-}
-
-WorkThreadsPool::~WorkThreadsPool()
-{
-	delete [] workThreads_;
-}
-
-int WorkThreadsPool::start()
-{
-	for(int i = 0; i  < threadsNum_; i++)
-	{
-		Thread thread(threadFunc_,"worker");
-		*(workThreads_+i) = thread.tid();
-	}
-
-}
 
 
 #endif

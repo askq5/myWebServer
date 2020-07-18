@@ -53,7 +53,7 @@ public:
     int epollFd_;
     struct epoll_event * events_;
 
-	int Epoll::epollCtl(Channel * channel);
+	int epollCtl(Channel * channel);
 	//int epoll_add(struct event_loop *, Channel & channel1);
 
 	int epollDispatch();

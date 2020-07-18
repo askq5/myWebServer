@@ -7,10 +7,11 @@
 #include <functional>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/socket.h>
 
 #include "TcpConnection.h"
 #include "Utils.h"
-#include "sys/socket.h"
+//#include "TcpServer.h"
 
 #define BUFSIZE 1024
 
@@ -77,6 +78,8 @@ int TcpConnection::handleRead() {
         handleConnectionClosed();
         return -1;
     }
+
+    //appendRequest(this);
     pthread_mutex_lock(&tcpServer_->locker_);
     if(tcpServer_->workQueue_.size() >= tcpServer_->maxRequests_)
     {
