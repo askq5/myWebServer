@@ -2,7 +2,7 @@ MAINSOURCE:=webServer.cpp
 SOURCE:=$(wildcard *.cpp)
 override SOURCE:=$(filter-out &(MAINSOURCE),$(SOURCE))
 OBJS := $(SOURCE)
-#OBJS := $(PATHSUBST %.cpp,%.o,$(SOURCE))
+OBJS := $(patsubst %.cpp,%.o,$(SOURCE))
 
 
 	 
@@ -23,7 +23,12 @@ veryclean:
 	find . -name '*.o' | xargs rm -f
 	find . -name $(TARGET) | xargs rm -f
 debug:
-	@echo $(SOURCE)
+	@echo $(OBJS)
 
-$(TARGET): $(OBJS) webServer.cpp
+$(TARGET): $(OBJS) webServer.o
 	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+#webServer.o:webServer.cpp HttpServer.h TcpServer.h
+#	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+#%.o:%.cpp
+#	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)

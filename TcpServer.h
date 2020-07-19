@@ -49,7 +49,7 @@ public:
 	sem_t sem_;
 	pthread_mutex_t locker_;
 	std::queue<TcpConnection *> workQueue_;
-	int maxRequests_;
+	unsigned int maxRequests_;
 
 	void * worker();
 

@@ -5,6 +5,7 @@
 	> Created Time: Fri 17 Jul 2020 11:27:21 AM CST
  ************************************************************************/
 #include <functional>
+#include <iostream>
 
 #include "TcpServer.h"
 #include "HttpServer.h"
@@ -13,6 +14,8 @@
 
 int main(int c, char **v) {
     
+    std::cout << "start" << std::endl;
+
     HttpServer httpServer;
 
     //初始tcp_server，可以指定线程数目，这里线程是1，说明是一个acceptor线程，1个I/O线程
