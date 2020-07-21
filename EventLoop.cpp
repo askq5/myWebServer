@@ -125,12 +125,12 @@ int EventLoop::channelOpEvent(Channel * channel)
 	if(pthread_self() != ownerThreadId_)
 	{
 		pthread_mutex_lock(&mutex_);
-		isHandlePending_ = 0;channel);
+		isHandlePending_ = 0;
+		pendingChannel_.push(channel);
 		pthread_mutex_unlock(&mutex_);
 		wakeup();
 	}
 	else
-		pendingChannel_.push(
 	{
 		//handlePendingChannel();
 		epoller_->epollCtl(channel);
