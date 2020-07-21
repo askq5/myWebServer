@@ -7,7 +7,7 @@
 
 #ifndef _WORKTHREADsPOOl_H
 #define _WORKTHREADsPOOl_H
-
+#include <thread>
 #include <pthread.h>
 
 //#include "TcpServer.h"
@@ -27,8 +27,8 @@ public:
 	int start();
 	//void * worker(void *);
 	
-	pthread_t * workThreads_;
-
+	//pthread_t * workThreads_;
+    std::thread::id * workThreads_;
 };
 
 

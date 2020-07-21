@@ -12,7 +12,7 @@ WorkThreadsPool::WorkThreadsPool(int threadsNum,ThreadFunc threadFunc)
 
 
 {
-	workThreads_ = new pthread_t[threadsNum_];
+	workThreads_ = new std::thread::id[threadsNum_];
 
 }
 
@@ -25,9 +25,10 @@ int WorkThreadsPool::start()
 {
 	for(int i = 0; i  < threadsNum_; i++)
 	{
-		Thread * thread = new Thread(threadFunc_,"worker");
-        thread->start();
-		*(workThreads_+i) = thread->tid();
+		//Thread * thread = new Thread(threadFunc_,"worker");
+        //thread->start();
+		std::thread * t = new std::thread(threadFunc_);
+        *(workThreads_+i) = t->get_id();
 	}
     return 0;
 }

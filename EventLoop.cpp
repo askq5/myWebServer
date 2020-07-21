@@ -111,6 +111,7 @@ void EventLoop::wakeup()
 int EventLoop::handleWakeup() {
     char one;
     ssize_t n = read(wakeupFd_, &one, sizeof one);
+    //这里必须读到一个字符
     if (n != sizeof one) {
         //LOG_ERR("handleWakeup  failed");
     }
@@ -124,12 +125,12 @@ int EventLoop::channelOpEvent(Channel * channel)
 	if(pthread_self() != ownerThreadId_)
 	{
 		pthread_mutex_lock(&mutex_);
-		isHandlePending_ = 0;
-		pendingChannel_.push(channel);
+		isHandlePending_ = 0;channel);
 		pthread_mutex_unlock(&mutex_);
 		wakeup();
 	}
 	else
+		pendingChannel_.push(
 	{
 		//handlePendingChannel();
 		epoller_->epollCtl(channel);
