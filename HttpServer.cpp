@@ -572,7 +572,7 @@ AnalysisState HttpServer::analysisRequest()
     {
         if(url_ == "/")
         {
-            ifstream fin("/source/judge.html",ios::in);
+            ifstream fin("source//judge.html",ios::in);
             istreambuf_iterator<char> beg(fin),end;
             outBuffer_.assign(beg,end);
             fin.close();

@@ -1,7 +1,6 @@
 NOSOURCE :=webServer.cpp SqlConnectionPool.cpp
-SOURCE:=$(wildcard *.cpp)
-override SOURCE:=$(filter-out &(NOSOURCE),$(SOURCE))
-OBJS := $(SOURCE)
+SOURCE :=$(wildcard *.cpp)
+SOURCE :=$(filter-out $(NOSOURCE),$(SOURCE))
 OBJS := $(patsubst %.cpp,%.o,$(SOURCE))
 
 
@@ -23,6 +22,7 @@ veryclean:
 	find . -name '*.o' | xargs rm -f
 	find . -name $(TARGET) | xargs rm -f
 debug:
+	@echo $(SOURCE)
 	@echo $(OBJS)
 
 $(TARGET): $(OBJS) webServer.o

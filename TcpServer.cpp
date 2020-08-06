@@ -11,7 +11,7 @@
 #include <netinet/in.h>
 #include <strings.h>
 #include <signal.h>
-
+#include <arpa/inet.h>
 
 #include "TcpServer.h"
 #include "TcpConnection.h"
@@ -46,7 +46,13 @@ int TcpServer::listenNoblock(int port) {
     struct sockaddr_in server_addr;
     bzero(&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    //address.sin_addr.s_addr = htonl(INADDR_ANY);
+    //私有ip地址绑定成功
+    inet_pton(AF_INET,"172.16.24.152",&server_addr.sin_addr);
+    //公网ip地址绑定失败
+    //inet_pton(AF_INET,"47.99.67.206",&address.sin_addr);
+
     server_addr.sin_port = htons(port);
 
     int on = 1;
