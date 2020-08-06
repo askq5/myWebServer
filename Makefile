@@ -1,6 +1,6 @@
-MAINSOURCE:=webServer.cpp
+NOSOURCE :=webServer.cpp SqlConnectionPool.cpp
 SOURCE:=$(wildcard *.cpp)
-override SOURCE:=$(filter-out &(MAINSOURCE),$(SOURCE))
+override SOURCE:=$(filter-out &(NOSOURCE),$(SOURCE))
 OBJS := $(SOURCE)
 OBJS := $(patsubst %.cpp,%.o,$(SOURCE))
 

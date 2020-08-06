@@ -24,24 +24,24 @@ class SeqQueue:public Queue<T>
 private:
     /* data */
 public:
-    SeqQueue(int size = 10):head(-1),tail(0),length_(size){
+    SeqQueue(int size = 10):head_(-1),tail_(0),length_(size){
         if(size > MAX_SIZE)
             cout << "the seqqueue  have " << MAX_SIZE << " elements at most" <<endl;
         elementsArray_ = new T[size];
     }
-    ~SeqQueue(){ delete [] elementsArray_}
+    ~SeqQueue(){ delete [] elementsArray_; }
      bool enQueue(const T & x);
      bool deQueue();
      bool getFront(T & x) const;
      bool isEmpty() const { return head_ == -1; }
      bool isFull()  const { return tail_ == length_; }
      int  getSize() const { if(tail_ == length_) return length_;
-                    if(head == -1) return 0; 
-                    return length_-abs(tail-head)+1;}
+                    if(head_ == -1) return 0; 
+                    return length_-abs(tail_-head_)+1;}
      template <typename T2>
      friend ostream & operator << (ostream & os, SeqQueue<T2> & Q);
 protected:
-    int tail_,head_;
+    int head_,tail_;
     T * elementsArray_;
 public:
     int length_;
@@ -55,7 +55,7 @@ bool SeqQueue<T>::enQueue(const T& x) {
         cout << "full" << endl;
         return false;
     }
-    elementsArray_[tail] = x;
+    elementsArray_[tail_] = x;
     if(isEmpty())
         head_ = tail_;
     tail_ = (tail_+1)%length_;
@@ -66,7 +66,7 @@ bool SeqQueue<T>::enQueue(const T& x) {
 
 template <class T>
 bool SeqQueue<T>::deQueue(){
-    if(isEmpty)()
+    if(isEmpty())
     {
         cout << "empty" << endl;
         return false;
@@ -83,7 +83,7 @@ template<class T>
 bool SeqQueue<T>::getFront(T& x)const{
     if(isEmpty())
         return false;
-    x =  elementsArray_[head];
+    x =  elementsArray_[head_];
     return true;
 }
 
