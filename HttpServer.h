@@ -112,6 +112,8 @@ public:
     int handleMessage(std::string &inBuffer, std::string &outBuffer);
 
 private:
+    std::string url_;
+    
     std::string inBuffer_;
     std::string outBuffer_;
     bool error_;

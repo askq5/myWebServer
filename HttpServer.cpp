@@ -8,7 +8,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <iostream>
-
+#include <fstream>
 #include "HttpServer.h"
 
 using namespace std;
@@ -133,8 +133,6 @@ int HttpServer::handleMessage(std::string & inBuffer, std::string & outBuffer)
     inBuffer_ = inBuffer;
     outBuffer_ = outBuffer;
     parseRequest();
-
-
     return 0;
 }
 
@@ -318,7 +316,6 @@ void HttpServer::parseRequest()
     }
 }
 
-
 URLState HttpServer::parseURL()
 {
     string &str = inBuffer_;
@@ -330,15 +327,15 @@ URLState HttpServer::parseURL()
         return PARSE_URL_AGAIN;
     }
     // 去掉请求行所占的空间，节省空间
-    string request_line = str.substr(0, pos);
+    string requestLine = str.substr(0, pos);
     if (str.size() > pos + 1)
         str = str.substr(pos + 1);
     else
         str.clear();
     // Method
-    int posGet = request_line.find("GET");
-    int posPost = request_line.find("POST");
-    int posHead = request_line.find("HEAD");
+    int posGet = requestLine.find("GET");
+    int posPost = requestLine.find("POST");
+    int posHead = requestLine.find("HEAD");
 
     if (posGet >= 0)
     {
@@ -360,56 +357,67 @@ URLState HttpServer::parseURL()
         return PARSE_URL_ERROR;
     }
 
-    // filename
-    pos = request_line.find("/", pos);
-    if (pos < 0)
-    {
-        fileName_ = "index.html";
-        HTTPVersion_ = HTTP_11;
-        return PARSE_URL_SUCCESS;
-    }
-    else
-    {
-        size_t _pos = request_line.find(' ', pos);
-        if (_pos < 0)
-            return PARSE_URL_ERROR;
-        else
-        {
-            if (_pos - pos > 1)
-            {
-                fileName_ = request_line.substr(pos + 1, _pos - pos - 1);
-                size_t __pos = fileName_.find('?');
-                if (__pos >= 0)
-                {
-                    fileName_ = fileName_.substr(0, __pos);
-                }
-            }
 
-            else
-                fileName_ = "index.html";
-        }
-        pos = _pos;
-    }
-    // cout << "fileName_: " << fileName_ << endl;
-    // HTTP 版本号
-    pos = request_line.find("/", pos);
-    if (pos < 0)
-        return PARSE_URL_ERROR;
+    // filename
+    pos = requestLine.find("/", pos);
+    int endPos = requestLine.find(" ",pos);
+    url_ = requestLine.substr(pos,endPos-pos);
+    pos = requestLine.find("HTTP/1.1",endPos);
+    if(pos >= 0)
+        HTTPVersion_ = HTTP_11;
     else
-    {
-        if (request_line.size() - pos <= 3)
-            return PARSE_URL_ERROR;
-        else
-        {
-            string ver = request_line.substr(pos + 1, 3);
-            if (ver == "1.0")
-                HTTPVersion_ = HTTP_10;
-            else if (ver == "1.1")
-                HTTPVersion_ = HTTP_11;
-            else
-                return PARSE_URL_ERROR;
-        }
-    }
+        HTTPVersion_ = HTTP_10;
+
+    // if (pos < 0)
+    // {
+    //     fileName_ = "index.html";
+    //     HTTPVersion_ = HTTP_11;
+    //     return PARSE_URL_SUCCESS;
+    // }
+    // else
+    // {
+    //     size_t _pos = requestLine.find(' ', pos);
+    //     if (_pos < 0)
+    //         return PARSE_URL_ERROR;
+    //     else
+    //     {
+    //         if (_pos - pos > 1)
+    //         {
+    //             fileName_ = requestLine.substr(pos + 1, _pos - pos - 1);
+    //             size_t __pos = fileName_.find('?');
+    //             if (__pos >= 0)
+    //             {
+    //                 fileName_ = fileName_.substr(0, __pos);
+    //             }
+    //         }
+
+    //         else
+    //             fileName_ = "index.html";
+    //     }
+    //     pos = _pos;
+    // }
+    
+    // // cout << "fileName_: " << fileName_ << endl;
+    // // HTTP 版本号
+    // pos = requestLine.find("/", pos);
+    // if (pos < 0)
+    //     return PARSE_URL_ERROR;
+    // else
+    // {
+    //     if (requestLine.size() - pos <= 3)
+    //         return PARSE_URL_ERROR;
+    //     else
+    //     {
+    //         string ver = requestLine.substr(pos + 1, 3);
+    //         if (ver == "1.0")
+    //             HTTPVersion_ = HTTP_10;
+    //         else if (ver == "1.1")
+    //             HTTPVersion_ = HTTP_11;
+    //         else
+    //             return PARSE_URL_ERROR;
+    //     }
+    // }
+    
     return PARSE_URL_SUCCESS;
 }
 
@@ -534,7 +542,8 @@ AnalysisState HttpServer::analysisRequest()
 {
     if (method_ == METHOD_POST)
     {
-        // ------------------------------------------------------
+        
+
         // My CV stitching handler which requires OpenCV library
         // ------------------------------------------------------
         // string header;
@@ -561,6 +570,14 @@ AnalysisState HttpServer::analysisRequest()
     }
     else if (method_ == METHOD_GET || method_ == METHOD_HEAD)
     {
+        if(url_ == "/")
+        {
+            ifstream fin("/source/judge.html",ios::in);
+            istreambuf_iterator<char> beg(fin),end;
+            outBuffer_.assign(beg,end);
+            fin.close();
+            return ANALYSIS_SUCCESS;
+        }
         string header;
         header += "HTTP/1.1 200 OK\r\n";
         if (headers_.find("Connection") != headers_.end() &&
@@ -610,6 +627,8 @@ AnalysisState HttpServer::analysisRequest()
         header += "Server: LinYa's Web Server\r\n";
         // 头部结束
         header += "\r\n";
+
+
         outBuffer_ += header;
 
         if (method_ == METHOD_HEAD)

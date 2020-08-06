@@ -27,7 +27,6 @@ debug:
 
 $(TARGET): $(OBJS) webServer.o
 	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
-
 #webServer.o:webServer.cpp HttpServer.h TcpServer.h
 #	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 #%.o:%.cpp
