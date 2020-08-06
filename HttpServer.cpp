@@ -424,6 +424,8 @@ URLState HttpServer::parseURL()
 HeaderState HttpServer::parseHeaders()
 {
     string &str = inBuffer_;
+    if(str.empty())
+        return PARSE_HEADER_SUCCESS;
     int key_start = -1, key_end = -1, value_start = -1, value_end = -1;
     int now_read_line_begin = 0;
     bool notFinish = true;

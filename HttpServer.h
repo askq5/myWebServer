@@ -94,7 +94,7 @@ private:
     static pthread_once_t once_control;
 };
 
-class HttpServer : public std::enable_shared_from_this<HttpServer>
+class HttpServer: public std::enable_shared_from_this<HttpServer>
 {
 public:
     HttpServer();
@@ -114,8 +114,8 @@ public:
 private:
     std::string url_;
     
-    std::string inBuffer_;
-    std::string outBuffer_;
+    std::string  inBuffer_ ;
+    std::string  outBuffer_;
     bool error_;
     ConnectionState connectionState_;
 

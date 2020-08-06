@@ -13,6 +13,7 @@
 #include "Utils.h"
 #include "TcpServer.h"
 
+#define MAXSIZE 4096
 #define BUFSIZE 1024
 
 TcpConnection::TcpConnection(int fd, EventLoop * eventLoop, TcpServer * ptr)
@@ -55,9 +56,10 @@ int TcpConnection::handleConnectionClosed() {
 
 int TcpConnection::handleRead() {
     ssize_t readLen = 0, len = 1;
+    char buff[MAXSIZE];
     while(len)
     {
-        len = read(channel_->getFd(),&inBuffer_+readLen, BUFSIZE);
+        len = read(channel_->getFd(),buff+readLen, BUFSIZE);
         readLen += len;
         if(len < 0)
         {
@@ -71,6 +73,7 @@ int TcpConnection::handleRead() {
             }
         }
     }
+
     if(readLen == 0)
     {
         //client调用了shutdown | close
@@ -78,7 +81,8 @@ int TcpConnection::handleRead() {
         handleConnectionClosed();
         return -1;
     }
-
+    inBuffer_.clear();
+    inBuffer_ += std::string(buff, buff + readLen);
     //appendRequest(this);
     pthread_mutex_lock(&tcpServer_->locker_);
     if(tcpServer_->workQueue_.size() >= tcpServer_->maxRequests_)

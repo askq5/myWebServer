@@ -9,6 +9,7 @@
 #define _EVENTLOOP_H
 
 #include <unordered_map>
+#include <map>
 #include <string>
 #include <queue>
 #include <functional>
@@ -51,7 +52,7 @@ public:
 	EventLoop(std::string threadName);
 	~EventLoop();
     //fd 指示 channel 的存在
-    std::unordered_map<int,Channel*> channelMap_;
+    std::map<int,Channel*> channelMap_;
     
     std::string getThreadName() { return threadName_; }
 	pthread_t getTid() { return ownerThreadId_;}

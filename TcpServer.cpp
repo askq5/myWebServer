@@ -103,9 +103,11 @@ int TcpServer::handleConnectioneEstablished() {
         //tcpConection->setName  = eventLoop->getThreadName();
         //tcpConnection->setTcpServer(this);
         tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
+        //tcpConnection->eventLoop_->channelMap_[connected_fd] = tcpConnection->channel_;
     }
     acceptor_->setOp(OP_MOD);
     eventLoopThreadPool_->baseEventLoop_->channelOpEvent(acceptor_);
+    
     return 0;
 }
 
