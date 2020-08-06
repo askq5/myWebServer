@@ -12,7 +12,7 @@
 #include <strings.h>
 #include <signal.h>
 #include <arpa/inet.h>
-
+#include <iostream>
 #include "TcpServer.h"
 #include "TcpConnection.h"
 
@@ -121,6 +121,7 @@ void * TcpServer::worker()
     pthread_mutex_unlock(&locker_);
 
     messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
+    std::cout << tcpConnection->outBuffer_ << std::endl;
     //更改
     tcpConnection->channel_->setOp(OP_MOD);
     tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);

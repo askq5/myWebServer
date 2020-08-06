@@ -131,8 +131,9 @@ HttpServer::HttpServer(/*EventLoop *loop, int connfd*/)
 int HttpServer::handleMessage(std::string & inBuffer, std::string & outBuffer)
 {
     inBuffer_ = inBuffer;
-    outBuffer_ = outBuffer;
+    //outBuffer_ = outBuffer;
     parseRequest();
+    outBuffer = outBuffer_;
     return 0;
 }
 
