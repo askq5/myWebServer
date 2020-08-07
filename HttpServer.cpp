@@ -132,7 +132,9 @@ int HttpServer::handleMessage(std::string & inBuffer, std::string & outBuffer)
 {
     inBuffer_ = inBuffer;
     //outBuffer_ = outBuffer;
-    parseRequest();
+    parseURL();
+    analysisRequest();
+    //parseRequest();
     outBuffer = outBuffer_;
     return 0;
 }
@@ -171,36 +173,15 @@ void HttpServer::parseRequest()
     //__uint32_t &events_ = channel_->getEvents();
     do
     {
-        //bool zero = false;
-        // read_num = readn(fd_, inBuffer_, zero);
-        //LOG << "Request: " << inBuffer_;
+        
         if (connectionState_ == H_DISCONNECTING)
         {
             inBuffer_.clear();
             break;
         }
-        // cout << inBuffer_ << endl;
-        //if (read_num < 0)
-        // {
-        //     perror("1");
-        //     error_ = true;
-        //     handleError(fd_, 400, "Bad Request");
-        //     break;
-        // }
-        // else if (read_num == 0)
-        // {
-        //     error_ = true;
-        //     break;
-        // }
-        
         if (inBuffer_.empty())
         {
-            // 有请求出现但是读不到数据，可能是Request
-            // Aborted，或者来自网络的数据没有达到等原因
-            // 最可能是对端已经关闭了，统一按照对端已经关闭处理
-            // error_ = true;
             connectionState_ = H_DISCONNECTING;
-            // error_ = true;
             break;
             // cout << "readnum == 0" << endl;
         }
@@ -301,14 +282,7 @@ void HttpServer::parseRequest()
                     parseRequest();
             }
 
-            // if ((keepAlive_ || inBuffer_.size() > 0) && connectionState_ ==
-            // H_CONNECTED)
-            // {
-            //     this->reset();
-            //     events_ |= EPOLLIN;
-            // }
         }
-        //解析没有全部完成 也没有断开连接？ 可能是没读完发送过来的数据
         else if (!error_ && connectionState_ != H_DISCONNECTED)
         {
             //重新读？
@@ -425,7 +399,7 @@ URLState HttpServer::parseURL()
 HeaderState HttpServer::parseHeaders()
 {
     string &str = inBuffer_;
-    if(str.empty())
+    if(url_ == "/")
         return PARSE_HEADER_SUCCESS;
     int key_start = -1, key_end = -1, value_start = -1, value_end = -1;
     int now_read_line_begin = 0;
@@ -575,9 +549,17 @@ AnalysisState HttpServer::analysisRequest()
     {
         if(url_ == "/")
         {
-            ifstream fin("source//judge.html",ios::in);
+            ifstream fin("/home/askq/linux_cpp/myWebServer/source/judge.html",ios::in);
             istreambuf_iterator<char> beg(fin),end;
-            outBuffer_.assign(beg,end);
+            string str(beg,end);
+            outBuffer_ += "HTTP/1.1 200 OK\r\n";
+            char buf[32];
+            snprintf(buf, sizeof buf, "Content-Length: %zd\r\n", str.size());
+            outBuffer_ += buf;
+            outBuffer_ += "Connection: Keep-Alive\r\n";
+            outBuffer_ += "\r\n";
+            outBuffer_ += str;
+            //outBuffer_ += "?";
             fin.close();
             return ANALYSIS_SUCCESS;
         }

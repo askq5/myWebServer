@@ -112,9 +112,10 @@ int TcpConnection::handleWrite() {
     
     assertInSameThread(eventLoop_);
     ssize_t writedLen = 0, len = 0, bufLen = outBuffer_.size();
+    void * ptr = const_cast<char *>(outBuffer_.c_str());
     while(writedLen < bufLen)
     {
-        len = write(channel_->getFd(), &outBuffer_+writedLen,bufLen-writedLen);
+        len = write(channel_->getFd(), ptr+writedLen,bufLen-writedLen);
         writedLen+=len;
         if(len < 0)
         {

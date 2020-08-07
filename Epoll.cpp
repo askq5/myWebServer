@@ -72,6 +72,7 @@ int Epoll::epollMod(int fd, epoll_event epollEvent)
 	if(epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &epollEvent))
 		perror("epoll_mod error");
 
+
 	return 0;
 }
 

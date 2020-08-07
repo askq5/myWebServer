@@ -114,18 +114,23 @@ int TcpServer::handleConnectioneEstablished() {
 
 void * TcpServer::worker()
 {
-	sem_wait(&sem_);
-	pthread_mutex_unlock(&locker_);
-	TcpConnection * tcpConnection= workQueue_.front();
-    workQueue_.pop();
-    pthread_mutex_unlock(&locker_);
+    while (true)
+    {
+        sem_wait(&sem_);
+	    pthread_mutex_unlock(&locker_);
+	    TcpConnection * tcpConnection= workQueue_.front();
+        workQueue_.pop();
+        pthread_mutex_unlock(&locker_);
 
-    messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
-    std::cout << tcpConnection->outBuffer_ << std::endl;
-    //更改
-    tcpConnection->channel_->setOp(OP_MOD);
-    tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);
-    tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
+        messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
+        //std::cout << tcpConnection->outBuffer_ << std::endl;
+        //更改
+        tcpConnection->channel_->setOp(OP_MOD);
+        tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);
+        tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
+    }
+    
+	
 
     return nullptr;
 }
