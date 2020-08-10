@@ -17,6 +17,8 @@
 #include <unordered_map>
 //#include "Timer.h"
 
+#define MAXLINEBUFFERSIZE 512
+
 enum ProcessState
 {
     STATE_PARSE_URL = 1,
@@ -26,19 +28,15 @@ enum ProcessState
     STATE_FINISH
 };
 
-enum URLState
-{
-    PARSE_URL_AGAIN = 1,
-    PARSE_URL_ERROR,
-    PARSE_URL_SUCCESS,
-};
-
-enum HeaderState
-{
-    PARSE_HEADER_SUCCESS = 1,
-    PARSE_HEADER_AGAIN,
-    PARSE_HEADER_ERROR
-};
+const char *ok_200_title = "OK";
+const char *error_400_title = "Bad Request";
+const char *error_400_form = "Your request has bad syntax or is inherently impossible to staisfy.\n";
+const char *error_403_title = "Forbidden";
+const char *error_403_form = "You do not have permission to get file form this server.\n";
+const char *error_404_title = "Not Found";
+const char *error_404_form = "The requested file was not found on this server.\n";
+const char *error_500_title = "Internal Error";
+const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
 enum AnalysisState
 {
@@ -46,31 +44,37 @@ enum AnalysisState
     ANALYSIS_ERROR
 };
 
-enum ParseState
+enum HttpCode
 {
-    H_START = 0,
-    H_KEY,
-    H_COLON,
-    H_SPACES_AFTER_COLON,
-    H_VALUE,
-    H_CR,
-    H_LF,
-    H_END_CR,
-    H_END_LF
+    NO_REQUEST,
+    GET_REQUEST,
+    BAD_REQUEST,
+    NO_RESOURCE,
+    FORBIDDEN_REQUEST,
+    FILE_REQUEST,
+    INTERNAL_ERROR,
+    CLOSED_CONNECTION
 };
 
-enum ConnectionState
+enum ChectState
 {
-    H_CONNECTED = 0,
-    H_DISCONNECTING,
-    H_DISCONNECTED
+    CHECK_STATE_REQUESTLINE = 0,
+    CHECK_STATE_HEADER,
+    CHECK_STATE_CONTENT,
+    CHECK_STATE_FINISH
 };
 
 enum HttpMethod
 {
     METHOD_POST = 1,
     METHOD_GET,
-    METHOD_HEAD
+    METHOD_HEAD,
+    METHOD_PUT,
+    METHOD_TRACE,
+    METHOD_DELETE,
+    METHOD_PATH,
+    METHOD_CONNECT,
+    METHOD_OPTION
 };
 
 enum HttpVersion
@@ -114,29 +118,43 @@ public:
 private:
     std::string url_;
     
-    std::string  inBuffer_ ;
+    
+    string  inBuffer_ ;
     std::string  outBuffer_;
     bool error_;
-    ConnectionState connectionState_;
-
-    HttpMethod method_;
-    HttpVersion HTTPVersion_;
-    std::string fileName_;
-    std::string path_;
+   
     int nowReadPos_;
+    HttpMethod method_;
+    HttpVersion httpVersion_;
+    std::string fileName_;
+    
+    ChectState checkState_;
+    HttpCode reqState_;
     ProcessState state_;
-    ParseState hState_;
+    
     bool keepAlive_;
+    string host_;
+    int contentLength_;
     std::map<std::string, std::string> headers_;
     //std::weak_ptr<TimerNode> timer_;
 
     //void handleWrite();
     //void handleConn();
-    void parseRequest();
+    bool addResponse(const char *format, ...);
+    bool addStatusLine(int status,const char * str);
+    bool addHeaders();
+    bool addContentLength();
+    bool addContentType();
+    bool addLinger();
+    bool addBlankLine();
+    bool addContent(string & str);
+    HttpCode  fillOutBufer();
+    HttpCode parseRequest();
     void handleError(int errNum, std::string &&short_msg);
-    URLState parseURL();
-    HeaderState parseHeaders();
-    AnalysisState analysisRequest();
+    HttpCode parseURL();
+    HttpCode parseHeaders();
+    HttpCode parseContent();
+    HttpCode analysisRequest();
 };
 
 #endif

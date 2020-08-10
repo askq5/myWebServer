@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <fstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include "HttpServer.h"
 
 using namespace std;
@@ -122,6 +124,7 @@ HttpServer::HttpServer(/*EventLoop *loop, int connfd*/)
       hState_(H_START),
       keepAlive_(false)
 {
+    fileName_ = "/home/askq/linux_cpp/myWebServer/source/"
     // loop_->queueInLoop(bind(&HttpServer::setHandlers, this));
     //   channel_->setReadHandler(bind(&HttpServer::handleRead, this));
     //   channel_->setWriteHandler(bind(&HttpServer::handleWrite, this));
@@ -168,145 +171,101 @@ void HttpServer::reset()
 //     }
 // }
 
-void HttpServer::parseRequest()
+HttpCode HttpServer::parseRequest()
 {
     //__uint32_t &events_ = channel_->getEvents();
-    do
-    {
-        
-        if (connectionState_ == H_DISCONNECTING)
-        {
-            inBuffer_.clear();
-            break;
-        }
-        if (inBuffer_.empty())
-        {
-            connectionState_ = H_DISCONNECTING;
-            break;
-            // cout << "readnum == 0" << endl;
-        }
-
-        if (state_ == STATE_PARSE_URL)
-        {
-            URLState flag = this->parseURL();
-            if (flag == PARSE_URL_AGAIN)
-                break;
-            else if (flag == PARSE_URL_ERROR)
-            {
-                perror("2");
-                //LOG << "FD = " << fd_ << "," << inBuffer_ << "******";
-                inBuffer_.clear();
-                error_ = true;
-                handleError(400, "Bad Request");
-                break;
-            }
-            else
-                state_ = STATE_PARSE_HEADERS;
-        }
-        
-        if (state_ == STATE_PARSE_HEADERS)
-        {
-            HeaderState flag = this->parseHeaders();
-            if (flag == PARSE_HEADER_AGAIN)
-                break;
-            else if (flag == PARSE_HEADER_ERROR)
-            {
-                perror("3");
-                error_ = true;
-                handleError(400, "Bad Request");
-                break;
-            }
-            if (method_ == METHOD_POST)
-            {
-                // POST方法准备
-                state_ = STATE_RECV_BODY;
-            }
-            else
-            {
-                state_ = STATE_ANALYSIS;
-            }
-        }
-        
-        if (state_ == STATE_RECV_BODY)
-        {
-            int content_length = -1;
-            if (headers_.find("Content-length") != headers_.end())
-            {
-                content_length = stoi(headers_["Content-length"]);
-            }
-            else
-            {
-                // cout << "(state_ == STATE_RECV_BODY)" << endl;
-                error_ = true;
-                handleError(400, "Bad Request: Lack of argument (Content-length)");
-                break;
-            }
-            if (static_cast<int>(inBuffer_.size()) < content_length)
-                break;
-            state_ = STATE_ANALYSIS;
-        }
-        
-        if (state_ == STATE_ANALYSIS)
-        {
-            AnalysisState flag = this->analysisRequest();
-            if (flag == ANALYSIS_SUCCESS)
-            {
-                state_ = STATE_FINISH;
-                break;
-            }
-            else
-            {
-                // cout << "state_ == STATE_ANALYSIS" << endl;
-                error_ = true;
-                break;
-            }
-        }
     
-    } while (false);
-    // cout << "state_=" << state_ << endl;
-    if (!error_)
-    {
-        if (outBuffer_.size() > 0)
-        {
-            return ;
-            //handleWrite();
-            // events_ |= EPOLLOUT;
-        }
-        // error_ may change
-        if (!error_ && state_ == STATE_FINISH)
-        {
-            this->reset();
-            if (inBuffer_.size() > 0)
-            {
-                if (connectionState_ != H_DISCONNECTING)
-                    parseRequest();
-            }
+    HttpCode ret = NO_REQUEST;
+    checkState_ = CHECK_STATE_REQUESTLINE;
 
-        }
-        else if (!error_ && connectionState_ != H_DISCONNECTED)
+    while(checkState_ != CHECK_STATE_FINISH)
+    {
+        //LOG_INFO("%s", text);
+        switch(CHECK_STATE_REQUESTLINE)
         {
-            //重新读？
-            //events_ |= EPOLLIN;
+            case CHECK_STATE_REQUESTLINE:
+            {
+                ret = parseURL();
+                if (ret == BAD_REQUEST)
+                    return BAD_REQUEST;
+                else
+                    checkState_ = CHECK_STATE_HEADER;
+                break;
+            }
+            case CHECK_STATE_HEADER:
+            {
+                ret = parseHeaders();
+                if (ret == BAD_REQUEST)
+                    return BAD_REQUEST;
+                else if (method_ ==  METHOD_GET && ret == GET_REQUEST)
+                {
+                    ret = analysisRequest();
+                    checkState_ = CHECK_STATE_FINISH;
+                }
+                else if(method_ ==  METHOD_GET && ret == GET_REQUEST)
+                {
+                    checkState_ = CHECK_STATE_CONTENT;
+                }
+                break;
+            }
+            case CHECK_STATE_CONTENT:
+            {
+                ret = parseContent();
+                if (ret == GET_REQUEST)
+                {
+                    ret = analysisRequest();
+                    checkState_ = CHECK_STATE_FINISH;
+                }
+                break;
+            }
+            default:
+                return INTERNAL_ERROR;
         }
     }
+    
+
+    // if (!error_)
+    // {
+    //     if (outBuffer_.size() > 0)
+    //     {
+    //         return ;
+    //         //handleWrite();
+    //         // events_ |= EPOLLOUT;
+    //     }
+    //     // error_ may change
+    //     if (!error_ && state_ == STATE_FINISH)
+    //     {
+    //         this->reset();
+    //         if (inBuffer_.size() > 0)
+    //         {
+    //             if (connectionState_ != H_DISCONNECTING)
+    //                 parseRequest();
+    //         }
+    //     }
+    //     else if (!error_ && connectionState_ != H_DISCONNECTED)
+    //     {
+    //         //重新读？
+    //         //events_ |= EPOLLIN;
+    //     }
+    return ret;
 }
 
-URLState HttpServer::parseURL()
+HttpCode HttpServer::parseURL()
 {
-    string &str = inBuffer_;
-    string cop = str;
+    
+    string cop = inBuffer_;
     // 读到完整的请求行再开始解析请求
-    size_t pos = str.find('\r', nowReadPos_);
+    size_t pos = inBuffer_.find('\r', 0);
     if (pos < 0)
     {
         return PARSE_URL_AGAIN;
     }
     // 去掉请求行所占的空间，节省空间
-    string requestLine = str.substr(0, pos);
-    if (str.size() > pos + 1)
-        str = str.substr(pos + 1);
+    string requestLine = inBuffer_.substr(0, pos);
+    if (inBuffer_.size() > pos + 1)
+        inBuffer_ = inBuffer_.substr(pos + 1);
     else
-        str.clear();
+        inBuffer_.clear();
     // Method
     int posGet = requestLine.find("GET");
     int posPost = requestLine.find("POST");
@@ -332,8 +291,7 @@ URLState HttpServer::parseURL()
         return PARSE_URL_ERROR;
     }
 
-
-    // filename
+    
     pos = requestLine.find("/", pos);
     int endPos = requestLine.find(" ",pos);
     url_ = requestLine.substr(pos,endPos-pos);
@@ -342,306 +300,226 @@ URLState HttpServer::parseURL()
         HTTPVersion_ = HTTP_11;
     else
         HTTPVersion_ = HTTP_10;
-
-    // if (pos < 0)
-    // {
-    //     fileName_ = "index.html";
-    //     HTTPVersion_ = HTTP_11;
-    //     return PARSE_URL_SUCCESS;
-    // }
-    // else
-    // {
-    //     size_t _pos = requestLine.find(' ', pos);
-    //     if (_pos < 0)
-    //         return PARSE_URL_ERROR;
-    //     else
-    //     {
-    //         if (_pos - pos > 1)
-    //         {
-    //             fileName_ = requestLine.substr(pos + 1, _pos - pos - 1);
-    //             size_t __pos = fileName_.find('?');
-    //             if (__pos >= 0)
-    //             {
-    //                 fileName_ = fileName_.substr(0, __pos);
-    //             }
-    //         }
-
-    //         else
-    //             fileName_ = "index.html";
-    //     }
-    //     pos = _pos;
-    // }
-    
-    // // cout << "fileName_: " << fileName_ << endl;
-    // // HTTP 版本号
-    // pos = requestLine.find("/", pos);
-    // if (pos < 0)
-    //     return PARSE_URL_ERROR;
-    // else
-    // {
-    //     if (requestLine.size() - pos <= 3)
-    //         return PARSE_URL_ERROR;
-    //     else
-    //     {
-    //         string ver = requestLine.substr(pos + 1, 3);
-    //         if (ver == "1.0")
-    //             HTTPVersion_ = HTTP_10;
-    //         else if (ver == "1.1")
-    //             HTTPVersion_ = HTTP_11;
-    //         else
-    //             return PARSE_URL_ERROR;
-    //     }
-    // }
     
     return PARSE_URL_SUCCESS;
 }
 
-HeaderState HttpServer::parseHeaders()
+HttpCode HttpServer::parseHeaders()
 {
-    string &str = inBuffer_;
-    if(url_ == "/")
-        return PARSE_HEADER_SUCCESS;
+    string pattern = "\r\n\r\n";
+    int pos = inBuffer_.find(pattern);
+    if(pos == inBuffer_.npos)
+        return BAD_REQUEST;
+    string str = inBuffer_.substr(0,pos+2);
+    inBuffer_ = inBuffer_.substr(pos+2);
     int key_start = -1, key_end = -1, value_start = -1, value_end = -1;
     int now_read_line_begin = 0;
     bool notFinish = true;
     size_t i = 0;
-    for (; i < str.size() && notFinish; ++i)
+    string connState = "Connection: ";
+    string contLen = "Content-length: ";
+    string hostName = "Host: ";
+    while(!str.empty())
     {
-        switch (hState_)
-        {
-        case H_START:
-        {
-            if (str[i] == '\n' || str[i] == '\r')
-                break;
-            hState_ = H_KEY;
-            key_start = i;
-            now_read_line_begin = i;
+        pos = str.find("\r\n",0);
+        if(pos == str.npos) 
             break;
-        }
-        case H_KEY:
+        string line = str.substr(0,pos);
+        str = str.substr(pos+2);
+        int posConn = line.find(connState);
+        int posContent = line.find(contLen);
+        int posHost = line.find(hostName);
+        if(posConn  != line.npos)
         {
-            if (str[i] == ':')
-            {
-                key_end = i;
-                if (key_end - key_start <= 0)
-                    return PARSE_HEADER_ERROR;
-                hState_ = H_COLON;
-            }
-            else if (str[i] == '\n' || str[i] == '\r')
-                return PARSE_HEADER_ERROR;
-            break;
+            if(line.find("keep-alive"))
+                keepAlive_ = true;
         }
-        case H_COLON:
+        else if(posContent != line.npos)
         {
-            if (str[i] == ' ')
-            {
-                hState_ = H_SPACES_AFTER_COLON;
-            }
-            else
-                return PARSE_HEADER_ERROR;
-            break;
+            line = line.substr(posContent+contLen.size());
+            contentLength_ = atoi(line.c_str());
         }
-        case H_SPACES_AFTER_COLON:
+        else if(posHost != line.npos)
         {
-            hState_ = H_VALUE;
-            value_start = i;
-            break;
+            line = line.substr(posContent+hostName.size());
+            host_ = line;
         }
-        case H_VALUE:
+        else
         {
-            if (str[i] == '\r')
-            {
-                hState_ = H_CR;
-                value_end = i;
-                if (value_end - value_start <= 0)
-                    return PARSE_HEADER_ERROR;
-            }
-            else if (i - value_start > 255)
-                return PARSE_HEADER_ERROR;
-            break;
+            string unKnowStr = "oop!unkown header: ";
+            unKnowStr += line;
         }
-        case H_CR:
-        {
-            if (str[i] == '\n')
-            {
-                hState_ = H_LF;
-                string key(str.begin() + key_start, str.begin() + key_end);
-                string value(str.begin() + value_start, str.begin() + value_end);
-                headers_[key] = value;
-                now_read_line_begin = i;
-            }
-            else
-                return PARSE_HEADER_ERROR;
-            break;
-        }
-        case H_LF:
-        {
-            if (str[i] == '\r')
-            {
-                hState_ = H_END_CR;
-            }
-            else
-            {
-                key_start = i;
-                hState_ = H_KEY;
-            }
-            break;
-        }
-        case H_END_CR:
-        {
-            if (str[i] == '\n')
-            {
-                hState_ = H_END_LF;
-            }
-            else
-                return PARSE_HEADER_ERROR;
-            break;
-        }
-        case H_END_LF:
-        {
-            notFinish = false;
-            key_start = i;
-            now_read_line_begin = i;
-            break;
-        }
-        }
+
     }
-    if (hState_ == H_END_LF)
-    {
-        str = str.substr(i);
-        return PARSE_HEADER_SUCCESS;
-    }
-    str = str.substr(now_read_line_begin);
-    return PARSE_HEADER_AGAIN;
+
+    return GET_REQUEST;
 }
 
-AnalysisState HttpServer::analysisRequest()
+bool HttpServer::addResponse(const char *format, ...)
+{
+    va_list arg_list;
+    va_start(arg_list, format);
+    char writeBufer[MAXLINEBUFFERSIZE];
+    int len = vsnprintf(writeBufer, MAXLINEBUFFERSIZE, format, arg_list);
+    if (len >= MAXLINEBUFFERSIZE)
+    {
+        va_end(arg_list);
+        return false;
+    }
+    va_end(arg_list);
+    outBuffer_ += writeBufer;
+    //LOG_INFO("request:%s", m_write_buf);
+
+    return true;
+
+}
+
+bool HttpServer::addStatusLine(int status,const char * title)
+{
+    char * httpVer;
+    if(httpVersion_ == HTTP_11)
+        httpVer = "HTTP/1.1";
+    else if(httpVersion_ == HTTP_10)
+        httpVer = "HTTP/1.0";
+    else
+        return false;
+
+    return addResponse("%s %d %s\r\n",httpVer,status,title);
+}
+bool HttpServer::addHeaders()
+{
+    return addContentLength() && addContentType() && addLinger() && addBlankLine();
+}
+bool HttpServer::addContentLength()
+{
+    return addResponse("Content-Length:%d\r\n", contentLength_);
+}
+bool HttpServer::addContentType()
+{
+    return addResponse("Content-Type:%s\r\n", "text/html");
+}
+bool HttpServer::addLinger()
+{
+    return addResponse("Connection:%s\r\n", (keepAlive_ == true) ? "keep-alive" : "close");
+}
+bool HttpServer::addBlankLine()
+{
+    return addResponse("%s", "\r\n");
+}
+bool HttpServer::addContent(string & str)
+{
+    outBuffer_ += str;
+}
+
+HttpCode   HttpServer::fillOutBufer()
+{
+    switch(reqState_)
+    {
+        case INTERNAL_ERROR:
+        {
+            addStatusLine(500, error_500_title);
+            addHeaders();
+            outBuffer_ += error_500_form;
+            break;
+        }
+        case NO_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            outBuffer_ += error_404_form;
+            break;
+        }
+        case GET_REQUEST:
+        {
+            break;
+        }
+        case BAD_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            outBuffer_ += error_404_form;
+            break;
+        }
+        case FORBIDDEN_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            outBuffer_ += error_404_form;
+            break;
+        }
+        case FILE_REQUEST:
+        {
+            //outBuffer_ += "HTTP/1.1 200 OK\r\n";
+            addStatusLine(200, ok_200_title);
+            ifstream fin(fileName_,ios::in);
+            istreambuf_iterator<char> beg(fin),end;
+            string str(beg,end);
+            contentLength_ = str.size();
+            addHeaders();
+            outBuffer_ += str;
+            //outBuffer_ += "?";
+            fin.close();
+            break;
+        }
+        default :
+            return BAD_REQUEST;
+
+    }
+
+    return GET_REQUEST;
+}
+
+HttpCode HttpServer::analysisRequest()
 {
     if (method_ == METHOD_POST)
     {
         
-
-        // My CV stitching handler which requires OpenCV library
-        // ------------------------------------------------------
-        // string header;
-        // header += string("HTTP/1.1 200 OK\r\n");
-        // if(headers_.find("Connection") != headers_.end() &&
-        // headers_["Connection"] == "Keep-Alive")
-        // {
-        //     keepAlive_ = true;
-        //     header += string("Connection: Keep-Alive\r\n") + "Keep-Alive:
-        //     timeout=" + to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
-        // }
-        // int length = stoi(headers_["Content-length"]);
-        // vector<char> data(inBuffer_.begin(), inBuffer_.begin() + length);
-        // Mat src = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH|CV_LOAD_IMAGE_ANYCOLOR);
-        // //imwrite("receive.bmp", src);
-        // Mat res = stitch(src);
-        // vector<uchar> data_encode;
-        // imencode(".png", res, data_encode);
-        // header += string("Content-length: ") + to_string(data_encode.size()) +
-        // "\r\n\r\n";
-        // outBuffer_ += header + string(data_encode.begin(), data_encode.end());
-        // inBuffer_ = inBuffer_.substr(length);
-        // return ANALYSIS_SUCCESS;
     }
     else if (method_ == METHOD_GET || method_ == METHOD_HEAD)
     {
+        
         if(url_ == "/")
         {
-            ifstream fin("/home/askq/linux_cpp/myWebServer/source/judge.html",ios::in);
-            istreambuf_iterator<char> beg(fin),end;
-            string str(beg,end);
-            outBuffer_ += "HTTP/1.1 200 OK\r\n";
-            char buf[32];
-            snprintf(buf, sizeof buf, "Content-Length: %zd\r\n", str.size());
-            outBuffer_ += buf;
-            outBuffer_ += "Connection: Keep-Alive\r\n";
-            outBuffer_ += "\r\n";
-            outBuffer_ += str;
-            //outBuffer_ += "?";
-            fin.close();
-            return ANALYSIS_SUCCESS;
+            fileName_ += "judge.html";
         }
-        string header;
-        header += "HTTP/1.1 200 OK\r\n";
-        if (headers_.find("Connection") != headers_.end() &&
-            (headers_["Connection"] == "Keep-Alive" ||
-             headers_["Connection"] == "keep-alive"))
+        else if(url_.find("0"))
         {
-            keepAlive_ = true;
-            header += string("Connection: Keep-Alive\r\n") + "Keep-Alive: timeout=" +
-                      to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
+            fileName_ += "/register.html";
         }
-        int dot_pos = fileName_.find('.');
-        string filetype;
-        if (dot_pos < 0)
-            filetype = MimeType::getMime("default");
+        else if (url_.find("1"))
+        {
+            fileName_ += "/log.html";
+        }
+        else if (url_.find("5"))
+        {
+            fileName_ += "/picture.html";
+        }
+        else if(url_.find("6"))
+        {
+            fileName_ += "/video.html";
+        }
+        else if(url_.find("7"))
+        {
+            fileName_ += "/fans.html";
+        }
         else
-            filetype = MimeType::getMime(fileName_.substr(dot_pos));
+            reqState_ = BAD_REQUEST;
 
-        // echo test
-        if (fileName_ == "hello")
-        {
-            outBuffer_ =
-                "HTTP/1.1 200 OK\r\nContent-type: text/plain\r\n\r\nHello World";
-            return ANALYSIS_SUCCESS;
-        }
-        if (fileName_ == "favicon.ico")
-        {
-            header += "Content-Type: image/png\r\n";
-            header += "Content-Length: " + to_string(sizeof favicon) + "\r\n";
-            header += "Server: LinYa's Web Server\r\n";
+        struct stat fileState;
+        if (stat(fileName_.c_str(), &fileState) < 0)
+            reqState_ = NO_RESOURCE;
 
-            header += "\r\n";
-            outBuffer_ += header;
-            outBuffer_ += string(favicon, favicon + sizeof favicon);
-            ;
-            return ANALYSIS_SUCCESS;
-        }
+        if (!(fileState.st_mode & S_IROTH))
+            reqState_ = FORBIDDEN_REQUEST;
 
-        struct stat sbuf;
-        if (stat(fileName_.c_str(), &sbuf) < 0)
-        {
-            header.clear();
-            handleError(404, "Not Found!");
-            return ANALYSIS_ERROR;
-        }
-        header += "Content-Type: " + filetype + "\r\n";
-        header += "Content-Length: " + to_string(sbuf.st_size) + "\r\n";
-        header += "Server: LinYa's Web Server\r\n";
-        // 头部结束
-        header += "\r\n";
+        if (S_ISDIR(fileState.st_mode))
+            reqState_ = BAD_REQUEST;
 
-
-        outBuffer_ += header;
-
-        if (method_ == METHOD_HEAD)
-            return ANALYSIS_SUCCESS;
-
-        int src_fd = open(fileName_.c_str(), O_RDONLY, 0);
-        if (src_fd < 0)
-        {
-            outBuffer_.clear();
-            handleError(404, "Not Found!");
-            return ANALYSIS_ERROR;
-        }
-        void *mmapRet = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
-        close(src_fd);
-        if (mmapRet == (void *)-1)
-        {
-            munmap(mmapRet, sbuf.st_size);
-            outBuffer_.clear();
-            handleError(404, "Not Found!");
-            return ANALYSIS_ERROR;
-        }
-        char *src_addr = static_cast<char *>(mmapRet);
-        outBuffer_ += string(src_addr, src_addr + sbuf.st_size);
-        ;
-        munmap(mmapRet, sbuf.st_size);
-        return ANALYSIS_SUCCESS;
+        
     }
-    return ANALYSIS_ERROR;
+
+    return fillOutBufer();
+
 }
 
 void HttpServer::handleError(int errNum, string  && short_msg)
@@ -668,86 +546,3 @@ void HttpServer::handleError(int errNum, string  && short_msg)
     //sprintf(send_buff, "%s", bodyBuffer.c_str());
     //writen(fd, send_buff, strlen(send_buff));
 }
-
-//在框架中完成 由handleconn调用
-// void HttpServer::handleClose()
-// {
-//     connectionState_ = H_DISCONNECTED;
-//     shared_ptr<HttpServer> guard(shared_from_this());
-//     loop_->removeFromPoller(channel_);
-// }
-
-//发送数据 框架来完成 更改成更新监控事件位 EPOLLOUT | EPOLLET
-// void HttpServer::handleWrite()
-// {
-//     if (!error_ && connectionState_ != H_DISCONNECTED)
-//     {
-//         __uint32_t &events_ = channel_->getEvents();
-//         if (writen(fd_, outBuffer_) < 0)
-//         {
-//             perror("writen");
-//             events_ = 0;
-//             error_ = true;
-//         }
-//         if (outBuffer_.size() > 0)
-//             events_ |= EPOLLOUT;
-//     }
-// }
-
-//更新 监控channel的事件及时间 框架中完成
-// void HttpServer::handleConn()
-// {
-//     seperateTimer();
-//     __uint32_t &events_ = channel_->getEvents();
-//     if (!error_ && connectionState_ == H_CONNECTED)
-//     {
-//         if (events_ != 0)
-//         {
-//             int timeout = DEFAULT_EXPIRED_TIME;
-//             if (keepAlive_)
-//                 timeout = DEFAULT_KEEP_ALIVE_TIME;
-//             if ((events_ & EPOLLIN) && (events_ & EPOLLOUT))
-//             {
-//                 events_ = __uint32_t(0);
-//                 events_ |= EPOLLOUT;
-//             }
-//             // events_ |= (EPOLLET | EPOLLONESHOT);
-//             events_ |= EPOLLET;
-//             loop_->updatePoller(channel_, timeout);
-//         }
-//         else if (keepAlive_)
-//         {
-//             events_ |= (EPOLLIN | EPOLLET);
-//             // events_ |= (EPOLLIN | EPOLLET | EPOLLONESHOT);
-//             int timeout = DEFAULT_KEEP_ALIVE_TIME;
-//             loop_->updatePoller(channel_, timeout);
-//         }
-//         else
-//         {
-//             // cout << "close normally" << endl;
-//             // loop_->shutdown(channel_);
-//             // loop_->runInLoop(bind(&HttpServer::handleClose, shared_from_this()));
-//             events_ |= (EPOLLIN | EPOLLET);
-//             // events_ |= (EPOLLIN | EPOLLET | EPOLLONESHOT);
-//             int timeout = (DEFAULT_KEEP_ALIVE_TIME >> 1);
-//             loop_->updatePoller(channel_, timeout);
-//         }
-//     }
-//     else if (!error_ && connectionState_ == H_DISCONNECTING &&
-//              (events_ & EPOLLOUT))
-//     {
-//         events_ = (EPOLLOUT | EPOLLET);
-//     }
-//     else
-//     {
-//         // cout << "close with errors" << endl;
-//         loop_->runInLoop(bind(&HttpServer::handleClose, shared_from_this()));
-//     }
-// }
-
-
-// void HttpServer::newEvent()
-// {
-//     channel_->setEvents(DEFAULT_EVENT);
-//     loop_->addToPoller(channel_, DEFAULT_EXPIRED_TIME);
-// }
