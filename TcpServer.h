@@ -37,7 +37,7 @@ private:
     //int threadsNum_;
     EventLoopThreadPool *eventLoopThreadPool_;
 	WorkThreadsPool * workThreadPool_;
-
+    
 	void make_nonblocking(int fd);
 	int listenNoblock(int port);
 	int handleConnectioneEstablished();
@@ -47,8 +47,10 @@ public:
 	TcpServer(int port, int subReactorThreadsNum,int workerThreadsNum);
 	~TcpServer();
 	sem_t sem_;
-	pthread_mutex_t locker_;
+	pthread_mutex_t workLocker_;
 	std::queue<TcpConnection *> workQueue_;
+    //pthread_mutex_t sendLocker_;
+    //std::map<int,std::string> sendBuffer_;
 	unsigned int maxRequests_;
 
 	void * worker();

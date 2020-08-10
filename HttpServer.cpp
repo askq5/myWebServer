@@ -11,6 +11,8 @@
 #include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 #include "HttpServer.h"
 
 using namespace std;
@@ -114,42 +116,76 @@ std::string MimeType::getMime(const std::string &suffix)
         return mime[suffix];
 }
 
-HttpServer::HttpServer(/*EventLoop *loop, int connfd*/)
+SqlConnectionPool * HttpServer::sqlConnPool = SqlConnectionPool::GetInstance();
+
+HttpServer::HttpServer()
     : error_(false),
-      connectionState_(H_CONNECTED),
       method_(METHOD_GET),
-      HTTPVersion_(HTTP_11),
-      nowReadPos_(0),
-      state_(STATE_PARSE_URL),
-      hState_(H_START),
+      httpVersion_(HTTP_11),
+      checkState_(CHECK_STATE_REQUESTLINE),
+      reqState_(GET_REQUEST),
       keepAlive_(false)
 {
-    fileName_ = "/home/askq/linux_cpp/myWebServer/source/"
+    
+    fileName_ = PATHSOURCE;
+    pthread_mutex_init(&mutex_,NULL);
     // loop_->queueInLoop(bind(&HttpServer::setHandlers, this));
     //   channel_->setReadHandler(bind(&HttpServer::handleRead, this));
     //   channel_->setWriteHandler(bind(&HttpServer::handleWrite, this));
     //   channel_->setConnHandler(bind(&HttpServer::handleConn, this));
 }
 
+ HttpServer::~HttpServer() 
+ { pthread_mutex_destroy(&mutex_);}
+
+void HttpServer::initSqlConnPool(string user, string passWord, string DBName, int maxConn, 
+                int closeLog = 1,string url = "localhost",int port = 3306)
+{
+    sqlConnPool->init(user,passWord,DBName,maxConn,closeLog,url,port);
+}
+
+void HttpServer::initMySql()
+{
+    ConnectionRAII mysqlcon(&mySql_, sqlConnPool);
+
+    //在user表中检索username，passwd数据，浏览器端输入
+    if (mysql_query(mySql_, "SELECT username,passwd FROM user"))
+    {
+        //LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
+    }
+
+    //从表中检索完整的结果集
+    MYSQL_RES *result = mysql_store_result(mySql_);
+
+    //返回结果集中的列数
+    int num_fields = mysql_num_fields(result);
+
+    //返回所有字段结构的数组
+    MYSQL_FIELD *fields = mysql_fetch_fields(result);
+
+    //从结果集中获取下一行，将对应的用户名和密码，存入map中
+    while (MYSQL_ROW row = mysql_fetch_row(result))
+    {
+        string temp1(row[0]);
+        string temp2(row[1]);
+        users_[temp1] = temp2;
+    }
+
+    return ;
+}
+
 int HttpServer::handleMessage(std::string & inBuffer, std::string & outBuffer)
 {
     inBuffer_ = inBuffer;
-    //outBuffer_ = outBuffer;
-    parseURL();
-    analysisRequest();
-    //parseRequest();
-    outBuffer = outBuffer_;
+    parseRequest();
+    swap(outBuffer_,outBuffer);
     return 0;
 }
 
 void HttpServer::reset()
 {
     // inBuffer_.clear();
-    fileName_.clear();
-    path_.clear();
-    nowReadPos_ = 0;
-    state_ = STATE_PARSE_URL;
-    hState_ = H_START;
+    fileName_ = PATHSOURCE;
     headers_.clear();
     // keepAlive_ = false;
     // if (timer_.lock())
@@ -247,6 +283,7 @@ HttpCode HttpServer::parseRequest()
     //         //重新读？
     //         //events_ |= EPOLLIN;
     //     }
+    
     return ret;
 }
 
@@ -258,7 +295,7 @@ HttpCode HttpServer::parseURL()
     size_t pos = inBuffer_.find('\r', 0);
     if (pos < 0)
     {
-        return PARSE_URL_AGAIN;
+        return BAD_REQUEST;
     }
     // 去掉请求行所占的空间，节省空间
     string requestLine = inBuffer_.substr(0, pos);
@@ -288,7 +325,7 @@ HttpCode HttpServer::parseURL()
     }
     else
     {
-        return PARSE_URL_ERROR;
+        return BAD_REQUEST;
     }
 
     
@@ -297,25 +334,21 @@ HttpCode HttpServer::parseURL()
     url_ = requestLine.substr(pos,endPos-pos);
     pos = requestLine.find("HTTP/1.1",endPos);
     if(pos >= 0)
-        HTTPVersion_ = HTTP_11;
+        httpVersion_ = HTTP_11;
     else
-        HTTPVersion_ = HTTP_10;
+        httpVersion_ = HTTP_10;
     
-    return PARSE_URL_SUCCESS;
+    return GET_REQUEST;
 }
 
 HttpCode HttpServer::parseHeaders()
 {
     string pattern = "\r\n\r\n";
-    int pos = inBuffer_.find(pattern);
+    size_t pos = inBuffer_.find(pattern);
     if(pos == inBuffer_.npos)
         return BAD_REQUEST;
     string str = inBuffer_.substr(0,pos+2);
     inBuffer_ = inBuffer_.substr(pos+2);
-    int key_start = -1, key_end = -1, value_start = -1, value_end = -1;
-    int now_read_line_begin = 0;
-    bool notFinish = true;
-    size_t i = 0;
     string connState = "Connection: ";
     string contLen = "Content-length: ";
     string hostName = "Host: ";
@@ -326,9 +359,9 @@ HttpCode HttpServer::parseHeaders()
             break;
         string line = str.substr(0,pos);
         str = str.substr(pos+2);
-        int posConn = line.find(connState);
-        int posContent = line.find(contLen);
-        int posHost = line.find(hostName);
+        size_t posConn = line.find(connState);
+        size_t posContent = line.find(contLen);
+        size_t posHost = line.find(hostName);
         if(posConn  != line.npos)
         {
             if(line.find("keep-alive"))
@@ -349,6 +382,179 @@ HttpCode HttpServer::parseHeaders()
             string unKnowStr = "oop!unkown header: ";
             unKnowStr += line;
         }
+
+    }
+
+    return GET_REQUEST;
+}
+
+HttpCode HttpServer::parseContent()
+{
+    size_t namePos = inBuffer_.find("name=");
+    if(namePos == inBuffer_.npos)
+        return BAD_REQUEST;
+    size_t passWord = inBuffer_.find("passwd=");
+    if(passWord == inBuffer_.npos)
+        return BAD_REQUEST;
+    return GET_REQUEST;
+}
+
+HttpCode HttpServer::analysisRequest()
+{
+    if (method_ == METHOD_POST)
+    {
+        size_t namePos = inBuffer_.find("name=");
+        size_t passWdPos = inBuffer_.find("passwd=");
+        size_t finPos = inBuffer_.find("&");
+        std::string name = inBuffer_.substr(namePos+5,finPos-namePos-5);
+        std::string passWd = inBuffer_.substr(passWdPos+7);
+
+        if(url_.find("3") != url_.npos)
+        {
+            //如果是注册，先检测数据库中是否有重名的
+            //没有重名的，进行增加数据
+            char * sql_insert = (char *)malloc(sizeof(char) * 200);
+            strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
+            strcat(sql_insert, "'");
+            strcat(sql_insert, name.c_str());
+            strcat(sql_insert, "', '");
+            strcat(sql_insert, passWd.c_str());
+            strcat(sql_insert, "')");
+
+            if (users_.find(name) == users_.end())
+            {
+                pthread_mutex_lock(&mutex_);
+                int res = mysql_query(mySql_, sql_insert);
+                users_.insert(pair<string, string>(name, passWd));
+                pthread_mutex_unlock(&mutex_);
+                if (!res)
+                    fileName_ += "log.html";
+                else
+                    fileName_ += "/registerError.html";
+            }
+            else
+                fileName_ += "registerError.html";
+        }
+        //如果是登录，直接判断
+        //若浏览器端输入的用户名和密码在表中可以查找到，返回1，否则返回0
+        else if (url_.find("2") != url_.npos)
+        {
+            if (users_.find(name) != users_.end() && users_[name] == passWd)
+                fileName_ += "/welcome.html";
+            else
+                fileName_ += "/logError.html";
+        }
+        
+        struct stat fileState;
+        if (stat(fileName_.c_str(), &fileState) < 0)
+            reqState_ = NO_RESOURCE;
+
+        if (!(fileState.st_mode & S_IROTH))
+            reqState_ = FORBIDDEN_REQUEST;
+
+        if (S_ISDIR(fileState.st_mode))
+            reqState_ = BAD_REQUEST;
+
+    }
+    else if (method_ == METHOD_GET || method_ == METHOD_HEAD)
+    {
+        
+        if(url_ == "/")
+        {
+            fileName_ += "judge.html";
+        }
+        else if(url_.find("0") != url_.npos)
+        {
+            fileName_ += "/register.html";
+        }
+        else if (url_.find("1") != url_.npos)
+        {
+            fileName_ += "/log.html";
+        }
+        else if (url_.find("5") != url_.npos)
+        {
+            fileName_ += "/picture.html";
+        }
+        else if(url_.find("6") != url_.npos)
+        {
+            fileName_ += "/video.html";
+        }
+        else if(url_.find("7") != url_.npos)
+        {
+            fileName_ += "/fans.html";
+        }
+        else
+            reqState_ = BAD_REQUEST;
+
+        struct stat fileState;
+        if (stat(fileName_.c_str(), &fileState) < 0)
+            reqState_ = NO_RESOURCE;
+
+        if (!(fileState.st_mode & S_IROTH))
+            reqState_ = FORBIDDEN_REQUEST;
+
+        if (S_ISDIR(fileState.st_mode))
+            reqState_ = BAD_REQUEST;
+
+        
+    }
+
+    return fillOutBufer();
+
+}
+
+HttpCode   HttpServer::fillOutBufer()
+{
+    switch(reqState_)
+    {
+        case INTERNAL_ERROR:
+        {
+            addStatusLine(500, error_500_title);
+            addHeaders();
+            handleError(500, error_500_form);
+            break;
+        }
+        case NO_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            handleError(404, error_404_form);
+            break;
+        }
+        case GET_REQUEST:
+        {
+            break;
+        }
+        case BAD_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            handleError(404, error_404_form);
+            break;
+        }
+        case FORBIDDEN_REQUEST:
+        {
+            addStatusLine(404, error_404_title);
+            addHeaders();
+            handleError(404, error_404_form);
+            break;
+        }
+        case FILE_REQUEST:
+        {
+            //outBuffer_ += "HTTP/1.1 200 OK\r\n";
+            addStatusLine(200, ok_200_title);
+            ifstream fin(fileName_,ios::in);
+            istreambuf_iterator<char> beg(fin),end;
+            string str(beg,end);
+            contentLength_ = str.size();
+            addHeaders();
+            outBuffer_ += str;
+            //outBuffer_ += "?";
+            fin.close();
+            break;
+        }
+        default :
+            return BAD_REQUEST;
 
     }
 
@@ -376,7 +582,7 @@ bool HttpServer::addResponse(const char *format, ...)
 
 bool HttpServer::addStatusLine(int status,const char * title)
 {
-    char * httpVer;
+    std::string httpVer;
     if(httpVersion_ == HTTP_11)
         httpVer = "HTTP/1.1";
     else if(httpVersion_ == HTTP_10)
@@ -384,7 +590,7 @@ bool HttpServer::addStatusLine(int status,const char * title)
     else
         return false;
 
-    return addResponse("%s %d %s\r\n",httpVer,status,title);
+    return addResponse("%s %d %s\r\n",httpVer.c_str(),status,title);
 }
 bool HttpServer::addHeaders()
 {
@@ -410,139 +616,18 @@ bool HttpServer::addContent(string & str)
 {
     outBuffer_ += str;
 }
-
-HttpCode   HttpServer::fillOutBufer()
+void HttpServer::handleError(int errNum, const char * shortMsg)
 {
-    switch(reqState_)
-    {
-        case INTERNAL_ERROR:
-        {
-            addStatusLine(500, error_500_title);
-            addHeaders();
-            outBuffer_ += error_500_form;
-            break;
-        }
-        case NO_REQUEST:
-        {
-            addStatusLine(404, error_404_title);
-            addHeaders();
-            outBuffer_ += error_404_form;
-            break;
-        }
-        case GET_REQUEST:
-        {
-            break;
-        }
-        case BAD_REQUEST:
-        {
-            addStatusLine(404, error_404_title);
-            addHeaders();
-            outBuffer_ += error_404_form;
-            break;
-        }
-        case FORBIDDEN_REQUEST:
-        {
-            addStatusLine(404, error_404_title);
-            addHeaders();
-            outBuffer_ += error_404_form;
-            break;
-        }
-        case FILE_REQUEST:
-        {
-            //outBuffer_ += "HTTP/1.1 200 OK\r\n";
-            addStatusLine(200, ok_200_title);
-            ifstream fin(fileName_,ios::in);
-            istreambuf_iterator<char> beg(fin),end;
-            string str(beg,end);
-            contentLength_ = str.size();
-            addHeaders();
-            outBuffer_ += str;
-            //outBuffer_ += "?";
-            fin.close();
-            break;
-        }
-        default :
-            return BAD_REQUEST;
-
-    }
-
-    return GET_REQUEST;
-}
-
-HttpCode HttpServer::analysisRequest()
-{
-    if (method_ == METHOD_POST)
-    {
-        
-    }
-    else if (method_ == METHOD_GET || method_ == METHOD_HEAD)
-    {
-        
-        if(url_ == "/")
-        {
-            fileName_ += "judge.html";
-        }
-        else if(url_.find("0"))
-        {
-            fileName_ += "/register.html";
-        }
-        else if (url_.find("1"))
-        {
-            fileName_ += "/log.html";
-        }
-        else if (url_.find("5"))
-        {
-            fileName_ += "/picture.html";
-        }
-        else if(url_.find("6"))
-        {
-            fileName_ += "/video.html";
-        }
-        else if(url_.find("7"))
-        {
-            fileName_ += "/fans.html";
-        }
-        else
-            reqState_ = BAD_REQUEST;
-
-        struct stat fileState;
-        if (stat(fileName_.c_str(), &fileState) < 0)
-            reqState_ = NO_RESOURCE;
-
-        if (!(fileState.st_mode & S_IROTH))
-            reqState_ = FORBIDDEN_REQUEST;
-
-        if (S_ISDIR(fileState.st_mode))
-            reqState_ = BAD_REQUEST;
-
-        
-    }
-
-    return fillOutBufer();
-
-}
-
-void HttpServer::handleError(int errNum, string  && short_msg)
-{
-    short_msg = " " + short_msg;
+    
     //char send_buff[4096];
     string bodyBuffer;
     bodyBuffer += "<html><title>哎~出错了</title>";
     bodyBuffer += "<body bgcolor=\"ffffff\">";
-    bodyBuffer += to_string(errNum) + short_msg;
-    bodyBuffer += "<hr><em> LinYa's Web Server</em>\n</body></html>";
-
-    outBuffer_ += "HTTP/1.1 " + to_string(errNum) + short_msg + "\r\n";
-    outBuffer_ += "Content-Type: text/html\r\n";
-    outBuffer_ += "Connection: Close\r\n";
-    outBuffer_ += "Content-Length: " + to_string(bodyBuffer.size()) + "\r\n";
-    outBuffer_ += "Server: LinYa's Web Server\r\n";
-    ;
-    outBuffer_ += "\r\n";
+    bodyBuffer += to_string(errNum) + shortMsg;
+    bodyBuffer += "<hr><em> nemo's Web Server</em>\n</body></html>";
     outBuffer_ += bodyBuffer;
-    // 错误处理不考虑writen不完的情况
-    ///sprintf(send_buff, "%s", outBuffer_.c_str());
-    //writen(fd, send_buff, strlen(send_buff));
-    //sprintf(send_buff, "%s", bodyBuffer.c_str());
-    //writen(fd, send_buff, strlen(send_buff));
+    
 }
+
+
+

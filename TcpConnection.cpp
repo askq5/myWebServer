@@ -84,15 +84,15 @@ int TcpConnection::handleRead() {
     inBuffer_.clear();
     inBuffer_ += std::string(buff, buff + readLen);
     //appendRequest(this);
-    pthread_mutex_lock(&tcpServer_->locker_);
+    pthread_mutex_lock(&tcpServer_->workLocker_);
     if(tcpServer_->workQueue_.size() >= tcpServer_->maxRequests_)
     {
-        pthread_mutex_unlock(&tcpServer_->locker_);
+        pthread_mutex_unlock(&tcpServer_->workLocker_);
         //太多连接了
         return -1;
     }
     tcpServer_->workQueue_.push(this);
-    pthread_mutex_unlock(&tcpServer_->locker_);
+    pthread_mutex_unlock(&tcpServer_->workLocker_);
     sem_post(&tcpServer_->sem_);
     return 0;
     // if(tcpServer_->getMessageCallBack() != nullptr) 
@@ -111,6 +111,7 @@ int TcpConnection::handleRead() {
 int TcpConnection::handleWrite() {
     
     assertInSameThread(eventLoop_);
+    
     ssize_t writedLen = 0, len = 0, bufLen = outBuffer_.size();
     void * ptr = const_cast<char *>(outBuffer_.c_str());
     while(writedLen < bufLen)

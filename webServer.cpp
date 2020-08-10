@@ -15,8 +15,14 @@
 int main(int c, char **v) {
     
     std::cout << "start" << std::endl;
+    string user = "root";
+    string passwd = "songshg&%#X0";
+    string databasename = "yourdb";
 
-    HttpServer httpServer;   //其中有初始化数据库连接池
+    //初始化数据库连接池
+    HttpServer httpServer;
+    
+    httpServer.initSqlConnPool(user, passwd, databasename, 8);
 
     //初始tcp_server，可以指定线程数目，这里线程是1，说明是一个acceptor线程，1个I/O 从reactor线程
     //tcp_server自己带一个event_loop

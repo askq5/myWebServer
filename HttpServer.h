@@ -16,8 +16,11 @@
 #include <string>
 #include <unordered_map>
 //#include "Timer.h"
+#include "SqlConnectionPool.h"
 
 #define MAXLINEBUFFERSIZE 512
+#define PATHSOURCE "/home/askq/linux_cpp/myWebServer/source/"
+
 
 enum ProcessState
 {
@@ -102,7 +105,7 @@ class HttpServer: public std::enable_shared_from_this<HttpServer>
 {
 public:
     HttpServer();
-    ~HttpServer() {}
+    ~HttpServer();
     void reset();
     void seperateTimer();
     //   void linkTimer(std::shared_ptr<TimerNode> mtimer) {
@@ -112,34 +115,37 @@ public:
 
     //void handleClose();
     //void newEvent();
-
+    void initSqlConnPool(string User, string PassWord, string DBName, int MaxConn, 
+                int close_log = 1,string url = "localhost",int Port = 3306);
     int handleMessage(std::string &inBuffer, std::string &outBuffer);
 
 private:
-    std::string url_;
-    
-    
+    static  SqlConnectionPool * sqlConnPool;
+    MYSQL * mySql_;
     string  inBuffer_ ;
     std::string  outBuffer_;
+    //?
     bool error_;
-   
-    int nowReadPos_;
+    std::string url_;
     HttpMethod method_;
     HttpVersion httpVersion_;
     std::string fileName_;
-    
     ChectState checkState_;
     HttpCode reqState_;
-    ProcessState state_;
-    
     bool keepAlive_;
     string host_;
     int contentLength_;
     std::map<std::string, std::string> headers_;
+    pthread_mutex_t mutex_;
+    std::map<string, string> users_;
+
+
+
     //std::weak_ptr<TimerNode> timer_;
 
     //void handleWrite();
     //void handleConn();
+    void HttpServer::initMySql();
     bool addResponse(const char *format, ...);
     bool addStatusLine(int status,const char * str);
     bool addHeaders();
@@ -150,7 +156,7 @@ private:
     bool addContent(string & str);
     HttpCode  fillOutBufer();
     HttpCode parseRequest();
-    void handleError(int errNum, std::string &&short_msg);
+    void handleError(int errNum, const char * shortMsg);
     HttpCode parseURL();
     HttpCode parseHeaders();
     HttpCode parseContent();

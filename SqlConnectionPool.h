@@ -30,8 +30,8 @@ public:
 	//单例模式
 	static SqlConnectionPool *GetInstance();
 
-	void init(string url, string User, string PassWord,
-             string DataBaseName, int Port, int MaxConn, int close_log); 
+	void init(string User, string PassWord, string DBName, int MaxConn, 
+                int close_log, string url, int Port); 
 
 private:
     SqlConnectionPool(/* args */);

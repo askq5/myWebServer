@@ -20,6 +20,8 @@
 
 TcpServer::TcpServer(int port, int subReactorThreadsNum,int workerThreadsNum)
 {
+    pthread_mutex_init(&workLocker_,NULL);
+    //pthread_mutex_init(&sendLocker_,NULL);
 	acceptor_ =new Channel(listenNoblock(port),OP_ADD);
     acceptor_->setEvents(EPOLLIN | EPOLLET);
 	eventLoopThreadPool_ = new EventLoopThreadPool(subReactorThreadsNum);
@@ -117,14 +119,15 @@ void * TcpServer::worker()
     while (true)
     {
         sem_wait(&sem_);
-	    pthread_mutex_unlock(&locker_);
+	    pthread_mutex_unlock(&workLocker_);
 	    TcpConnection * tcpConnection= workQueue_.front();
         workQueue_.pop();
-        pthread_mutex_unlock(&locker_);
+        pthread_mutex_unlock(&workLocker_);
 
         messageCallBack_(tcpConnection->inBuffer_,tcpConnection->outBuffer_);
         //std::cout << tcpConnection->outBuffer_ << std::endl;
         //更改
+
         tcpConnection->channel_->setOp(OP_MOD);
         tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);
         tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
