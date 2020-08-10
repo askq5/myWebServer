@@ -1,3 +1,10 @@
+/*************************************************************************
+	> File Name: SqlConnectionPool.cpp
+	> Author: nemo
+	> Mail: 1445118957@qq.com
+	> Created Time: Mon 10 Aug 2020 10:02:10 PM CST
+ ************************************************************************/
+
 #include <mysql/mysql.h>
 #include <string>
 #include <pthread.h>
@@ -5,7 +12,6 @@
 
 #include "SqlConnectionPool.h"
 
-using namespace std;
 
 SqlConnectionPool::SqlConnectionPool()
 {

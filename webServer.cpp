@@ -6,20 +6,20 @@
  ************************************************************************/
 #include <functional>
 #include <iostream>
-
+#include <string>
 #include "TcpServer.h"
 #include "HttpServer.h"
-
 
 
 int main(int c, char **v) {
     
     std::cout << "start" << std::endl;
-    string user = "root";
-    string passwd = "songshg&%#X0";
-    string databasename = "yourdb";
+    std::string user = "root";
+    std::string passwd = "songshg&%#X0";
+    std::string databasename = "yourdb";
 
     //初始化数据库连接池
+
     HttpServer httpServer;
     
     httpServer.initSqlConnPool(user, passwd, databasename, 8);
@@ -31,6 +31,5 @@ int main(int c, char **v) {
                             std::placeholders::_1,std::placeholders::_2));
     tcpServer->start();
 
-    // main thread for acceptor
-    //event_loop_run(eventLoop);
+    return 0;
 }

@@ -1,8 +1,20 @@
+/*************************************************************************
+	> File Name: SqlConnectionPool.h
+	> Author: nemo
+	> Mail: 1445118957@qq.com
+	> Created Time: Mon 10 Aug 2020 10:01:36 PM CST
+ ************************************************************************/
+
+#ifndef _SQLCONNECTIONPOOL_H
+#define _SQLCONNECTIONPOOL_H
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <mysql/mysql.h>
 #include <string>
 #include "SeqQueue.h"
+
+using std::string;
 
 class SqlConnectionPool
 {
@@ -50,3 +62,5 @@ private:
 	MYSQL *conRAII;
 	SqlConnectionPool *poolRAII;
 };
+
+#endif
