@@ -7,23 +7,23 @@
 #include <functional>
 #include <iostream>
 #include <string>
+
 #include "TcpServer.h"
 #include "HttpServer.h"
 
+using std::string;
 
 int main(int c, char **v) {
     
     std::cout << "start" << std::endl;
-    std::string user = "root";
-    std::string passwd = "songshg&%#X0";
-    std::string databasename = "yourdb";
+    string user = "root";
+    string passwd = "songshg&%#X0";
+    string databasename = "yourdb";
 
     //初始化数据库连接池
-
+    HttpServer::sqlConnPool_->init(user, passwd, databasename, 8);
     HttpServer httpServer;
     
-    httpServer.initSqlConnPool(user, passwd, databasename, 8);
-
     //初始tcp_server，可以指定线程数目，这里线程是1，说明是一个acceptor线程，1个I/O 从reactor线程
     //tcp_server自己带一个event_loop
     TcpServer *tcpServer = new TcpServer(2020,1,2);

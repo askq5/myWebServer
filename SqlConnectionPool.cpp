@@ -25,7 +25,7 @@ SqlConnectionPool *SqlConnectionPool::GetInstance()
 }
 
 //构造初始化
-void SqlConnectionPool::init(string User, string PassWord, string DBName, int MaxConn, int close_log = 1,string url = "localhost",int Port = 3306)
+void SqlConnectionPool::init(string User, string PassWord, string DBName, int MaxConn, int close_log,string url,int Port)
 {
 	url_ = url;
 	port_ = Port;

@@ -13,7 +13,6 @@
 #include <mysql/mysql.h>
 #include <string>
 #include "SeqQueue.h"
-
 using std::string;
 
 class SqlConnectionPool
@@ -43,7 +42,7 @@ public:
 	static SqlConnectionPool *GetInstance();
 
 	void init(string User, string PassWord, string DBName, int MaxConn, 
-                int close_log, string url, int Port); 
+                int closeLog = 1,string url = "localhost",int port = 3306); 
 
 private:
     SqlConnectionPool(/* args */);

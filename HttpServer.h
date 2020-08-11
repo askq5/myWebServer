@@ -77,41 +77,20 @@ enum HttpVersion
     HTTP_11
 };
 
-class MimeType
-{
-private:
-    static void init();
-    static std::unordered_map<std::string, std::string> mime;
-    MimeType();
-    MimeType(const MimeType &m);
-
-public:
-    static std::string getMime(const std::string &suffix);
-
-private:
-    static pthread_once_t once_control;
-};
-
-class HttpServer: public std::enable_shared_from_this<HttpServer>
+class HttpServer
 {
 public:
     HttpServer();
     ~HttpServer();
     void reset();
     void seperateTimer();
-    //   void linkTimer(std::shared_ptr<TimerNode> mtimer) {
-    //     // shared_ptr重载了bool, 但weak_ptr没有
-    //     timer_ = mtimer;
-    //   }
-
-    //void handleClose();
-    //void newEvent();
-    static void initSqlConnPool(string user, string passWord, string DBName, int maxConn, 
+    
+    void initSqlConnPool(string user, string passWord, string DBName, int maxConn, 
                 int closeLog = 1,string url = "localhost",int port = 3306);
     int handleMessage(std::string &inBuffer, std::string &outBuffer);
-
+    static  SqlConnectionPool * sqlConnPool_;
 private:
-    static  SqlConnectionPool * sqlConnPool;
+    
     MYSQL * mySql_;
     string  inBuffer_ ;
     std::string  outBuffer_;
@@ -121,6 +100,8 @@ private:
     HttpMethod method_;
     HttpVersion httpVersion_;
     std::string fileName_;
+    std::string path_;
+    std::string contentType_;
     ChectState checkState_;
     HttpCode reqState_;
     bool keepAlive_;
@@ -153,5 +134,7 @@ private:
     HttpCode parseContent();
     HttpCode analysisRequest();
 };
+
+//SqlConnectionPool *  HttpServer::sqlConnPool_ = SqlConnectionPool::GetInstance();
 
 #endif

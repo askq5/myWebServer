@@ -60,7 +60,6 @@ int TcpConnection::handleRead() {
     while(len)
     {
         len = read(channel_->getFd(),buff+readLen, BUFSIZE);
-        readLen += len;
         if(len < 0)
         {
             if(errno == EAGAIN || errno == EINTR)
@@ -72,6 +71,8 @@ int TcpConnection::handleRead() {
                  return -1;
             }
         }
+        //先判断再用
+        readLen += len;
     }
 
     if(readLen == 0)

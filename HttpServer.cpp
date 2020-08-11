@@ -14,15 +14,11 @@
 #include <stdarg.h>
 #include <string.h>
 #include <mysql/mysql.h>
+
 #include "HttpServer.h"
 #include "SqlConnectionPool.h"
 
-using namespace std;
-
-// pthread_once_t MimeType::once_control = PTHREAD_ONCE_INIT;
-// std::unordered_map<std::string, std::string> MimeType::mime;
-// const int DEFAULT_EXPIRED_TIME = 2000;             // ms
-// const int DEFAULT_KEEP_ALIVE_TIME = 5 * 60 * 1000; // ms
+using std::string;
 
 const char * ok_200_title = "OK";
 const char * error_400_title = "Bad Request";
@@ -35,34 +31,7 @@ const char * error_500_title = "Internal Error";
 const char * error_500_form = "There was an unusual problem serving the request file.\n";
 
 
-void MimeType::init()
-{
-    mime[".html"] = "text/html";
-    mime[".avi"] = "video/x-msvideo";
-    mime[".bmp"] = "image/bmp";
-    mime[".c"] = "text/plain";
-    mime[".doc"] = "application/msword";
-    mime[".gif"] = "image/gif";
-    mime[".gz"] = "application/x-gzip";
-    mime[".htm"] = "text/html";
-    mime[".ico"] = "image/x-icon";
-    mime[".jpg"] = "image/jpeg";
-    mime[".png"] = "image/png";
-    mime[".txt"] = "text/plain";
-    mime[".mp3"] = "audio/mp3";
-    mime["default"] = "text/html";
-}
-
-std::string MimeType::getMime(const std::string &suffix)
-{
-    pthread_once(&once_control, MimeType::init);
-    if (mime.find(suffix) == mime.end())
-        return mime["default"];
-    else
-        return mime[suffix];
-}
-
-SqlConnectionPool * HttpServer::sqlConnPool = SqlConnectionPool::GetInstance();
+SqlConnectionPool *  HttpServer::sqlConnPool_ = SqlConnectionPool::GetInstance();
 
 HttpServer::HttpServer()
     : error_(false),
@@ -71,18 +40,24 @@ HttpServer::HttpServer()
       checkState_(CHECK_STATE_REQUESTLINE),
       reqState_(GET_REQUEST),
       keepAlive_(false)
+      
 {
     
     //fileName_ = PATHSOURCE;
+    contentType_ = "text/html";
     char  buf[500];
     getcwd(buf,500);
-    fileName_ = buf;
+    path_ = buf;
+    fileName_ = path_;
     pthread_mutex_init(&mutex_,NULL);
+    initMySql();
+    
     // loop_->queueInLoop(bind(&HttpServer::setHandlers, this));
     //   channel_->setReadHandler(bind(&HttpServer::handleRead, this));
     //   channel_->setWriteHandler(bind(&HttpServer::handleWrite, this));
     //   channel_->setConnHandler(bind(&HttpServer::handleConn, this));
 }
+
 
  HttpServer::~HttpServer() 
  { pthread_mutex_destroy(&mutex_);}
@@ -90,12 +65,13 @@ HttpServer::HttpServer()
 void HttpServer::initSqlConnPool(string user, string passWord, string DBName, int maxConn, 
                 int closeLog,string url,int port)
 {
-    sqlConnPool->init(user,passWord,DBName,maxConn,closeLog,url,port);
+    
+    sqlConnPool_->init(user,passWord,DBName,maxConn,closeLog,url,port);
 }
 
 void HttpServer::initMySql()
 {
-    ConnectionRAII mysqlcon(&mySql_, sqlConnPool);
+    ConnectionRAII mysqlcon(&mySql_, sqlConnPool_);
 
     //在user表中检索username，passwd数据，浏览器端输入
     if (mysql_query(mySql_, "SELECT username,passwd FROM user"))
@@ -145,16 +121,6 @@ void HttpServer::reset()
     // }
 }
 
-// void HttpServer::seperateTimer()
-// {
-//     // cout << "seperateTimer" << endl;
-//     if (timer_.lock())
-//     {
-//         shared_ptr<TimerNode> my_timer(timer_.lock());
-//         my_timer->clearReq();
-//         timer_.reset();
-//     }
-// }
 
 HttpCode HttpServer::parseRequest()
 {
@@ -166,7 +132,7 @@ HttpCode HttpServer::parseRequest()
     while(checkState_ != CHECK_STATE_FINISH)
     {
         //LOG_INFO("%s", text);
-        switch(CHECK_STATE_REQUESTLINE)
+        switch(checkState_)
         {
             case CHECK_STATE_REQUESTLINE:
             {
@@ -187,7 +153,7 @@ HttpCode HttpServer::parseRequest()
                     ret = analysisRequest();
                     checkState_ = CHECK_STATE_FINISH;
                 }
-                else if(method_ ==  METHOD_GET && ret == GET_REQUEST)
+                else if(method_ ==  METHOD_POST && ret == GET_REQUEST)
                 {
                     checkState_ = CHECK_STATE_CONTENT;
                 }
@@ -206,8 +172,7 @@ HttpCode HttpServer::parseRequest()
             default:
                 return INTERNAL_ERROR;
         }
-    }
-    
+    } 
 
     // if (!error_)
     // {
@@ -249,7 +214,7 @@ HttpCode HttpServer::parseURL()
     // 去掉请求行所占的空间，节省空间
     string requestLine = inBuffer_.substr(0, pos);
     if (inBuffer_.size() > pos + 1)
-        inBuffer_ = inBuffer_.substr(pos + 1);
+        inBuffer_ = inBuffer_.substr(pos + 2);
     else
         inBuffer_.clear();
     // Method
@@ -292,12 +257,22 @@ HttpCode HttpServer::parseURL()
 
 HttpCode HttpServer::parseHeaders()
 {
-    string pattern = "\r\n\r\n";
-    size_t pos = inBuffer_.find(pattern);
-    if(pos == inBuffer_.npos)
-        return BAD_REQUEST;
-    string str = inBuffer_.substr(0,pos+2);
-    inBuffer_ = inBuffer_.substr(pos+2);
+    string str;
+    size_t pos;
+    if(method_ == METHOD_POST)
+    {
+        string pattern = "\r\n\r\n";
+        pos = inBuffer_.find(pattern);
+        if(pos == inBuffer_.npos)
+            return BAD_REQUEST;
+        
+        str = inBuffer_.substr(0,pos+2);
+        inBuffer_ = inBuffer_.substr(pos+4);
+    }
+    else
+    {
+        str.swap(inBuffer_);
+    }
     string connState = "Connection: ";
     string contLen = "Content-length: ";
     string hostName = "Host: ";
@@ -330,6 +305,7 @@ HttpCode HttpServer::parseHeaders()
         {
             string unKnowStr = "oop!unkown header: ";
             unKnowStr += line;
+            //log
         }
 
     }
@@ -339,10 +315,10 @@ HttpCode HttpServer::parseHeaders()
 
 HttpCode HttpServer::parseContent()
 {
-    size_t namePos = inBuffer_.find("name=");
+    size_t namePos = inBuffer_.find("user=");
     if(namePos == inBuffer_.npos)
         return BAD_REQUEST;
-    size_t passWord = inBuffer_.find("passwd=");
+    size_t passWord = inBuffer_.find("password=");
     if(passWord == inBuffer_.npos)
         return BAD_REQUEST;
     return GET_REQUEST;
@@ -350,13 +326,17 @@ HttpCode HttpServer::parseContent()
 
 HttpCode HttpServer::analysisRequest()
 {
+    fileName_ = path_;
+    fileName_ += "/source";
+    reqState_ = FILE_REQUEST;
+    contentType_ = "text/html";
     if (method_ == METHOD_POST)
     {
-        size_t namePos = inBuffer_.find("name=");
-        size_t passWdPos = inBuffer_.find("passwd=");
+        size_t namePos = inBuffer_.find("user=");
+        size_t passWdPos = inBuffer_.find("password=");
         size_t finPos = inBuffer_.find("&");
         std::string name = inBuffer_.substr(namePos+5,finPos-namePos-5);
-        std::string passWd = inBuffer_.substr(passWdPos+7);
+        std::string passWd = inBuffer_.substr(passWdPos+9);
 
         if(url_.find("3") != url_.npos)
         {
@@ -377,12 +357,12 @@ HttpCode HttpServer::analysisRequest()
                 users_.insert(pair<string, string>(name, passWd));
                 pthread_mutex_unlock(&mutex_);
                 if (!res)
-                    fileName_ += "log.html";
+                    fileName_ += "/log.html";
                 else
                     fileName_ += "/registerError.html";
             }
             else
-                fileName_ += "registerError.html";
+                fileName_ += "/registerError.html";
         }
         //如果是登录，直接判断
         //若浏览器端输入的用户名和密码在表中可以查找到，返回1，否则返回0
@@ -410,7 +390,7 @@ HttpCode HttpServer::analysisRequest()
         
         if(url_ == "/")
         {
-            fileName_ += "judge.html";
+            fileName_ += "/judge.html";
         }
         else if(url_.find("0") != url_.npos)
         {
@@ -432,6 +412,11 @@ HttpCode HttpServer::analysisRequest()
         {
             fileName_ += "/fans.html";
         }
+        // else if(url_.find("favicon.ico") != url_.npos)
+        // {
+        //     fileName_  += "/favicon.ico";
+        //     contentType_ = "image/png";
+        // }
         else
             reqState_ = BAD_REQUEST;
 
@@ -447,13 +432,14 @@ HttpCode HttpServer::analysisRequest()
 
         
     }
-
+    
     return fillOutBufer();
 
 }
 
 HttpCode   HttpServer::fillOutBufer()
 {
+    outBuffer_.clear();
     switch(reqState_)
     {
         case INTERNAL_ERROR:
@@ -551,7 +537,8 @@ bool HttpServer::addContentLength()
 }
 bool HttpServer::addContentType()
 {
-    return addResponse("Content-Type:%s\r\n", "text/html");
+
+    return addResponse("Content-Type:%s\r\n", contentType_.c_str());
 }
 bool HttpServer::addLinger()
 {
