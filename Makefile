@@ -6,7 +6,7 @@ OBJS := $(patsubst %.cpp,%.o,$(SOURCE))
 
 	 
 
-CFLAGS:= -std=c++11 -g  -pthread -Wall
+CFLAGS:= -std=c++11 -g  -Wall
 CXXFLAGS:=$(CFLAGS) 
 CC:=g++
 LDFLAGS+= -pthread -lmysqlclient
