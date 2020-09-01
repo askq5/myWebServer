@@ -15,9 +15,9 @@
 #include <memory>
 #include <string>
 
-#include "noncopyable.h"
+#include "NonCopyable.h"
 
-class Thread : noncopyable
+class Thread : NonCopyable
 {
 public:
     typedef std::function<void()> ThreadFunc;
