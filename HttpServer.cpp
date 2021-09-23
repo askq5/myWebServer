@@ -74,7 +74,7 @@ void HttpServer::initMySql()
     ConnectionRAII mysqlcon(&mySql_, sqlConnPool_);
 
     //在user表中检索username，passwd数据，浏览器端输入
-    if (mysql_query(mySql_, "SELECT username,passwd FROM user"))
+    if (mysql_query(mySql_, "SELECT username,passwd FROM users_register"))
     {
         //LOG_ERROR("SELECT error:%s\n", mysql_error(mysql));
     }

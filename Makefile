@@ -1,7 +1,7 @@
 NOSOURCE :=webServer.cpp
 SOURCE :=$(wildcard *.cpp)
 SOURCE :=$(filter-out $(NOSOURCE),$(SOURCE))
-OBJS := $(patsubst %.cpp,%.o,$(SOURCE))
+OBJS := $(patsubst %.cpp, %.o,$(SOURCE))
 
 
 	 
@@ -11,16 +11,16 @@ CXXFLAGS:=$(CFLAGS)
 CC:=g++
 LDFLAGS+= -pthread -lmysqlclient
 
-TARGET:=webServer
+TARGET:=output/webServer
 .PHONY : objs clean veryclean rebuild all  debug
-all:$(TARGET)
+all:$(TARGET) clean
 	#@echo $(OBJS)
 rebuild: veryclean all
 clean:
 	find . -name '*.o' | xargs rm -f
 veryclean:
 	find . -name '*.o' | xargs rm -f
-	find . -name $(TARGET) | xargs rm -f
+	find . -name webServer | xargs rm -f
 debug:
 	@echo $(SOURCE)
 	@echo $(OBJS)

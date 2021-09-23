@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>
-
 #include "TcpConnection.h"
 #include "Utils.h"
 #include "TcpServer.h"
@@ -113,8 +112,8 @@ int TcpConnection::handleWrite() {
     
     assertInSameThread(eventLoop_);
     
-    ssize_t writedLen = 0, len = 0, bufLen = outBuffer_.size();
-    void * ptr = const_cast<char *>(outBuffer_.c_str());
+    size_t writedLen = 0, len = 0, bufLen = outBuffer_.size();
+    char * ptr = const_cast<char *>(outBuffer_.c_str());
     while(writedLen < bufLen)
     {
         len = write(channel_->getFd(), ptr+writedLen,bufLen-writedLen);

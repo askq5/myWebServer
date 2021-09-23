@@ -17,8 +17,8 @@ int main(int c, char **v) {
     
     std::cout << "start" << std::endl;
     string user = "root";
-    string passwd = "songshg&%#X0";
-    string databasename = "yourdb";
+    string passwd = "askq";
+    string databasename = "web_server";
 
     //初始化数据库连接池
     HttpServer::sqlConnPool_->init(user, passwd, databasename, 8);

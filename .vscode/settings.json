@@ -1,6 +1,9 @@
 {
-    "files.associations": {
-        "*.tcc": "cpp",
-        "vector": "cpp"
-    }
+    "workbench.editor.enablePreview": false,
+    "editor.fontLigatures": true,
+    "editor.fontSize": 18, 
+    //"editor.fontFamily": "'Ubuntu Mono derivative Powerline'",
+    "terminal.integrated.fontFamily": "monospace",
+    "terminal.integrated.fontSize": 18,
+    "workbench.fontAliasing": "antialiased"
 }

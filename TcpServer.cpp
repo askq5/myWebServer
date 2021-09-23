@@ -51,7 +51,7 @@ int TcpServer::listenNoblock(int port) {
 
     //address.sin_addr.s_addr = htonl(INADDR_ANY);
     //私有ip地址绑定成功
-    inet_pton(AF_INET,"172.16.24.152",&server_addr.sin_addr);
+    inet_pton(AF_INET,"10.248.132.15",&server_addr.sin_addr);
     //公网ip地址绑定失败
     //inet_pton(AF_INET,"47.99.67.206",&address.sin_addr);
 
