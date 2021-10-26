@@ -64,9 +64,6 @@ public:
 	void writeEventDisable();
 
 private:
-
-
-
 };
 
 

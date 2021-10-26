@@ -26,7 +26,6 @@ public:
 	~WorkThreadsPool();
 	int start();
 	//void * worker(void *);
-	
 	//pthread_t * workThreads_;
     std::thread::id * workThreads_;
 };

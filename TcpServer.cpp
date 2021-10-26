@@ -132,9 +132,6 @@ void * TcpServer::worker()
         tcpConnection->channel_->setEvents(EPOLLOUT | EPOLLET);
         tcpConnection->eventLoop_->channelOpEvent(tcpConnection->channel_);
     }
-    
-	
-
     return nullptr;
 }
 
@@ -147,16 +144,13 @@ void TcpServer::start()
     //设置acceptor的回调函数 并将acceptor注册到baseeventloop
 	acceptor_->setReadHandler(std::bind(&TcpServer::handleConnectioneEstablished,this));
     
-    
 	eventLoopThreadPool_->baseEventLoop_->channelMap_[acceptor_->getFd()] = acceptor_;
 	eventLoopThreadPool_->baseEventLoop_->channelOpEvent(acceptor_);
-
     //工作线程开启
     workThreadPool_->start();
 	//运行baseeventloop 
 	eventLoopThreadPool_->baseEventLoop_->run();
-
-    
+   
     return;
 }
 
